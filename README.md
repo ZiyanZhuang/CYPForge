@@ -146,13 +146,33 @@ Ten stages, fixed order, enforced by `skills/cypforge/skills_manifest.json` and 
 
 ---
 
-## Heme parameter attribution
+## Citations
+
+CYPForge is an orchestration layer that drives well-established upstream tools. If you publish results obtained with it, please cite both the bundled parameter set and the third-party tools that did the actual chemistry.
+
+### Bundled heme parameters
 
 The heme / CYP / iron parameters under `src/cypforge/data/heme_params/` (states `IC6`, `DIOXY`, `CPDI`) come from:
 
 > Shahrokh K, Orendt A, Yost GS, Cheatham TE III. *Quantum mechanically derived AMBER-compatible heme parameters for various states of the cytochrome P450 catalytic cycle.* **J. Comput. Chem.** 2012, 33(2): 119–133. [doi:10.1002/jcc.21922](https://doi.org/10.1002/jcc.21922) · PMID 21997754 · PMCID PMC3242737.
 
-Please cite this paper when publishing results that use these parameters. Full provenance: `src/cypforge/data/heme_params/PROVENANCE.json`.
+Full provenance: [`src/cypforge/data/heme_params/PROVENANCE.json`](src/cypforge/data/heme_params/PROVENANCE.json).
+
+### Upstream tools
+
+| Tool | Used for | Cite |
+| --- | --- | --- |
+| **Amber** (pmemd / pmemd.cuda) | MD engine for pre-MD equilibration | Case D.A. *et al.* **Amber 2024**, University of California, San Francisco, 2024. |
+| pmemd.cuda (GPU MD) | GPU-accelerated equilibration | Salomon-Ferrer R, Götz A.W, Poole D, Le Grand S, Walker R.C. *Routine microsecond molecular dynamics simulations with AMBER on GPUs. 2. Explicit solvent particle mesh Ewald.* **J. Chem. Theory Comput.** 2013, 9(9): 3878–3888. [doi:10.1021/ct400314y](https://doi.org/10.1021/ct400314y) |
+| **AmberTools** — Antechamber | GAFF2 atom typing for the ligand | Wang J, Wang W, Kollman P.A, Case D.A. *Automatic atom type and bond type perception in molecular mechanical calculations.* **J. Mol. Graph. Model.** 2006, 25(2): 247–260. [doi:10.1016/j.jmgm.2005.12.005](https://doi.org/10.1016/j.jmgm.2005.12.005) |
+| **AmberTools** — GAFF / GAFF2 | Ligand force field | Wang J, Wolf R.M, Caldwell J.W, Kollman P.A, Case D.A. *Development and testing of a general amber force field.* **J. Comput. Chem.** 2004, 25(9): 1157–1174. [doi:10.1002/jcc.20035](https://doi.org/10.1002/jcc.20035) |
+| **PySCF** / **GPU4PySCF** | HF/6-31G* wavefunction for RESP | Sun Q. *et al.* *PySCF: the Python-based simulations of chemistry framework.* **WIREs Comput. Mol. Sci.** 2018, 8(1): e1340. [doi:10.1002/wcms.1340](https://doi.org/10.1002/wcms.1340) · Sun Q. *et al.* *Recent developments in the PySCF program package.* **J. Chem. Phys.** 2020, 153(2): 024109. [doi:10.1063/5.0006074](https://doi.org/10.1063/5.0006074) |
+| **Multiwfn** (`Multiwfn_noGUI`) | ESP grid + two-stage RESP fit | Lu T, Chen F. *Multiwfn: A multifunctional wavefunction analyzer.* **J. Comput. Chem.** 2012, 33(5): 580–592. [doi:10.1002/jcc.22885](https://doi.org/10.1002/jcc.22885) · Lu T. *A comprehensive electron wavefunction analysis toolbox for chemists, Multiwfn.* **J. Chem. Phys.** 2024, 161(8): 082503. [doi:10.1063/5.0216272](https://doi.org/10.1063/5.0216272) |
+| **RESP** method | Two-stage hyperbolic-restraint charge fit | Bayly C.I, Cieplak P, Cornell W.D, Kollman P.A. *A well-behaved electrostatic potential based method using charge restraints for deriving atomic charges: the RESP model.* **J. Phys. Chem.** 1993, 97(40): 10269–10280. [doi:10.1021/j100142a004](https://doi.org/10.1021/j100142a004) |
+
+### CYPForge itself
+
+A manuscript is in preparation. Until then, cite the repository URL and the released tag (`v1.1.0`).
 
 ---
 
