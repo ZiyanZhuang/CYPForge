@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cypforge"
+version = "1.1.0"
+description = "Strict orchestration and audit shell for CYP450 protein-heme-ligand Amber MD preprocessing."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Ziyan Zhuang" },
+]
+maintainers = [
+    { name = "Ziyan Zhuang" },
+]
+keywords = [
+    "cytochrome-p450",
+    "cyp450",
+    "amber",
+    "molecular-dynamics",
+    "heme",
+    "resp",
+    "gaff2",
+    "computational-chemistry",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = [
+    "numpy",
+]
+
+[project.optional-dependencies]
+qm = ["pyscf", "gpu4pyscf"]
+test = ["pytest"]
+
+[project.scripts]
+cypforge = "cypforge_core.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ZiyanZhuang/CYPForge"
+Repository = "https://github.com/ZiyanZhuang/CYPForge"
+Issues = "https://github.com/ZiyanZhuang/CYPForge/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["cypforge*", "cypforge_core*"]
+
+[tool.setuptools.package-data]
+cypforge = [
+    "data/heme_params/**/*.mol2",
+    "data/heme_params/**/*.frcmod",
+    "data/heme_params/**/*.json",
+]
+cypforge_core = ["data/*.json", "_qm/*.py"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra"

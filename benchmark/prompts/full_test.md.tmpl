@@ -1,0 +1,172 @@
+# CYPForge Agent Benchmark Prompt: Full {{case.name}}
+
+```text
+RUN_ID: {{run_id}}
+ABLATION_CONDITION: Full CYPForge, no MD execution
+START_TIME_MANUAL: record manually when this prompt is sent
+
+You are running one isolated CYPForge benchmark on the local CYPForge codebase. This test measures whether an agent can use the project's real scripts, skills, and local Windows/WSL environment to prepare and statically audit the {{case.name}} {{case.ligand_full_name}} system without running MD.
+
+Project/source root:
+- Start in this directory and treat it as the only CYPForge source root:
+  {{project_root}}
+- You may read source code, scripts, tests, and skills under this root.
+- Do not search for or use any other CYPForge copy.
+- Treat the source root as read-only unless a source-code bug blocks the benchmark. If an edit is unavoidable, first write the reason and intended file under RUN_ROOT.
+
+Input root:
+- {{benchmark_input_root}}/{{case.name}}
+- PDB:
+  {{case.pdb_path}}
+- SDF:
+  {{case.sdf_path}}
+- Read benchmark inputs only from this input root.
+
+Output/run root:
+- {{run_root}}
+- Write all generated files, copied intermediates, logs, ledgers, manifests, and reports only under RUN_ROOT.
+- Do not write benchmark artifacts into the CYPForge source root.
+- Do not read or write other benchmark run roots.
+
+Local environment facts to verify, not blindly assume:
+- WSL user: {{wsl_user}}
+- Amber setup is expected at:
+  {{amber_sh}}
+- Multiwfn is expected at:
+  {{multiwfn_bin}}
+- The input and project paths may contain non-ASCII (e.g. Chinese) characters. Preserve them exactly. Avoid inline piped Python or native-command patterns that can turn Unicode paths into question marks. Prefer normal PowerShell commands, real script files, and explicit UTF-8 handling when passing these paths to native tools.
+
+Known {{case.name}} input facts that must be checked during intake:
+- PDB ligand is expected to be {{case.ligand_resname}}, resid {{case.ligand_resid}}, {{case.ligand_atom_count}} atoms, chain {{case.ligand_chain}}.
+- PDB heme is expected to be {{case.heme_resname}}, resid {{case.heme_resid}}, {{case.heme_atom_count}} atoms, chain {{case.heme_chain}}.
+- Axial cysteine is expected to be {{case.axial_cys_resname}}, resid {{case.axial_cys_resid}}, chain {{case.axial_cys_chain}}. (Residue name may already be CYPForge-standardized in this PDB; do not assume raw CYS.)
+- SDF is {{case.ligand_full_name}}, {{case.ligand_atom_count}} atoms, formal charge expected {{case.formal_charge}}, spin expected {{case.spin}}.
+- Heme-state must be chosen from actual heme atoms. For this {{case.name}} input, expected heme state is {{case.heme_state}}. Evidence: {{case.heme_state_evidence}} If intake does not confirm this state, stop and report the conflict.
+- CYPForge defaults may be wrong for this file: ligand chain default is blank (""), but this {{case.name}} PDB is expected to use chain "{{case.ligand_chain_raw}}". Use explicit chain handling and do not let default chain values override parsed input facts. For blank ligand chains, prefer --blank-ligand-chain over --ligand-chain "".
+
+Objective:
+Prepare and statically audit the {{case.name}} CYP450 + {{case.heme_resname}} + {{case.ligand_full_name}} system through CYPForge's no-MD endpoint:
+1. environment/import/tool check
+2. Core 1 heme/CYM preparation
+3. Core 2 ligand GAFF2/RESP or equivalent CYPForge ligand parameterization
+4. Core 3 protonation finalization using an explicit decision JSON
+5. solvation/ionization tleap setup
+6. pre-MD input rendering and static inspection only
+
+Stop after rendering and statically auditing pre-MD inputs. Do not run any MD simulation.
+
+Allowed CYPForge usage:
+- You may use CYPForge skills and workflow documentation from the declared project root.
+- You may inspect and use individual CYPForge scripts.
+- You may use cypforge.cmd or scripts/cypforge_run.py for non-MD commands such as init, prep-only, status, and context.
+- The project supports a no-MD outer-shell path: scripts\cypforge_run.py prep-only. This command must stop before cypforge.core3_run_pre_md.
+- Do not call scripts/cypforge_run.py run or resume for this benchmark. Those commands can enter cypforge.core3_run_pre_md, which executes run_pre_md.sh via WSL and launches MD.
+- Do not execute RUN_ROOT\17_complex_pre_md_equilibration\run_pre_md.sh or run_pre_md_windows.ps1.
+- Do not launch pmemd.cuda, pmemd, or sander.
+
+Project-specific execution guidance:
+- Use the real module order encoded in src\cypforge_core\orchestrator\models.py, but stop before cypforge.core3_run_pre_md.
+- A faithful no-MD endpoint is cypforge.core3_render_pre_md:
+  scripts\complex_pre_md_equilibration.py renders mdin files and run scripts but does not itself run MD.
+- cypforge.global_audit, cypforge.equilibration_decision, and cypforge.production_readiness_check require pre-MD run-validation evidence and are not valid success targets in this no-MD benchmark unless you create a clearly marked static-only replacement report.
+- For protonation, this case's expected decision is:
+  {{case.expected_protonation_decision}}
+  If intake supports using this decision, create an explicit protonation decision JSON under RUN_ROOT and apply it. If intake contradicts it, stop and report the conflict.
+
+Required intake reports:
+- Before chemistry-changing or topology-generating commands, write:
+  {{run_root}}/system_chemistry_intake.md
+- Include at least: residue inventory, {{case.heme_resname}}/Fe status, Fe-S distance to {{case.axial_cys_resname}}{{case.axial_cys_resid}}, ligand {{case.ligand_resname}} atom count, SDF atom/element inventory, formal charge assumption, heme-state choice, chain IDs actually parsed, and any mismatch with the known {{case.name}} facts above.
+- Before finalizing command choices, write:
+  {{run_root}}/amber_reference_notes.md
+- Prefer local installed Amber/AmberTools manuals. If local manuals are insufficient, use official Amber/AmberTools online resources. Keep this file concise: record only command-relevant conclusions for tleap, antechamber/parmchk2 or GAFF2, RESP/ESP charge handling, cpptraj/parmed static topology inspection, and Amber mdin semantics. References do not permit MD execution.
+
+Scientific hard rules:
+1. SDF is the ligand chemistry source: graph, bond order, aromaticity, formal charge, and atom typing basis.
+2. PDB is the pose and coordinate source.
+3. Do not use PDB bond order as ligand chemistry truth.
+4. Final Amber topology must retain heme Fe.
+5. Confirm {{case.axial_cys_resname}}{{case.axial_cys_resid}}, Fe-S geometry/connectivity, Fe-N geometry/topology, and heme integrity.
+6. Ligand atom mapping must be identity-safe. Do not assume PDB/SDF/MOL2 atom row order is equivalent.
+7. RESP/ESP or equivalent ligand charges must match formal charge {{case.formal_charge}} unless intake proves a different formal charge.
+8. tleap success alone is not proof of correctness.
+9. Do not proceed to ligand parameterization until ligand residue identity, chain, atom count, and formal-charge assumption are explicitly recorded.
+10. Do not run restrained MD, free MD, equilibration MD, production MD, pmemd.cuda, pmemd, or sander.
+11. It is acceptable to generate MD input files and audit them statically.
+12. Static mdin audit must check that restrained-stage inputs use a reference restart and iwrap=0, and free-stage inputs do not use -ref.
+13. Stop on hard gate failure. Do not continue to downstream setup after a failed gate.
+
+Timing and stopping rules:
+- Primary metric is agent overhead time, not hardware compute time.
+- The human benchmark timer starts when this prompt is sent. If the human provides a manual start timestamp, record it as manual_start_user. If no manual timestamp is provided, immediately record the current system clock as agent_start without estimating backward.
+- Plan mode, source reading, debugging, command construction, report writing, and all recovery work are agent overhead and must NOT be subtracted.
+- Exclude only explicitly measured compute intervals for QM, RESP/ESP, and tleap execution. Do not exclude planning, waiting, or context switching.
+- Maintain:
+  {{run_root}}/timing_ledger.jsonl
+- Use exact ISO-8601 timestamps from the local system clock at the moment each event occurs. Include timezone or UTC offset. Do not reconstruct event times later from memory.
+- At minimum, record agent_start, plan_complete, command_start/command_end for every substantive command, compute_start/compute_end for each excluded QM/RESP/tleap interval, first_success_level_6_evidence, and agent_final.
+- Every command ledger row must include started_at, ended_at, duration_seconds, exit_code, decision, and compute_excluded=true/false.
+- Excluded compute time must be calculated only from compute_start/compute_end pairs or command ledger rows explicitly marked compute_excluded=true.
+- Agent overhead time = agent_final - agent_start - excluded_compute_time. This formula includes plan mode.
+- The final report must copy timing values directly from timing_ledger.jsonl and command_ledger.jsonl. Do not report reconstructed, corrected, estimated, or manually adjusted timing metrics.
+- If exact timestamps were not recorded at the time of execution, mark timing_quality=INCOMPLETE and report only the exact values available. Do not invent corrected timing.
+- Stop when agent overhead time reaches 60 minutes or when agent-initiated failed command count reaches 60, whichever comes first.
+- Count one failed command when an agent-run command exits nonzero, or when a command exits zero but the resulting step fails a hard gate and requires repair/retry.
+- Do not count multiple warning/error lines inside one software log as multiple errors.
+
+Execution requirements:
+- Start from the declared CYPForge project root.
+- Set PYTHONPATH to:
+  {{project_root}}/src
+- Pass explicit paths and parameters. In particular, use explicit chain handling for {{case.name}}:
+  heme_resname={{case.heme_resname}}
+  heme_chain={{case.heme_chain}}; for CLI commands, omit --heme-chain if blank rather than passing an empty argument
+  protein_chain={{case.protein_chain}}; for CLI commands, omit --protein-chain if blank rather than passing an empty argument
+  axial_cys_resid={{case.axial_cys_resid}}
+  ligand_resname={{case.ligand_resname}}
+  ligand_chain={{case.ligand_chain}}; for supported CLI commands with blank ligand chain, pass --blank-ligand-chain rather than --ligand-chain ""
+  formal_charge={{case.formal_charge}}
+  spin={{case.spin}}
+  heme_state={{case.heme_state}} unless intake proves a conflict
+- Pass explicit Amber/Multiwfn paths when supported:
+  --amber-sh {{amber_sh}}
+  --multiwfn-bin {{multiwfn_bin}}
+- Record each substantive command with working directory, command line, stdout/stderr path, exit code, generated files, and PASS/WARN/FAIL decision.
+- Produce machine-readable manifests and concise human-readable reports where practical.
+
+Before executing:
+1. Enter Plan mode.
+2. State the ablation condition.
+3. State the exact no-MD endpoint: stop after pre-MD input rendering/static audit, before core3_run_pre_md.
+4. State allowed and forbidden CYPForge command paths.
+5. Explain how you will verify the {{case.name}}-specific residue/chain/charge facts.
+6. Explain how you will consult Amber references and record command-relevant conclusions.
+7. Give a concise execution plan.
+8. Then execute the plan.
+
+Final report must include:
+- RUN_ID
+- ABLATION_CONDITION
+- FINAL_STATUS: PASS / WARN / FAIL / TIMEOUT / ERROR_BUDGET_EXCEEDED
+- success_level from 0 to 6:
+  0 = did not start
+  1 = environment/import/tool check passed
+  2 = chemistry intake and heme/CYM static checks passed
+  3 = ligand parameterization/charge preparation passed
+  4 = protonation finalization and complex assembly/tleap inputs passed
+  5 = solvation/ionization and static topology audit passed
+  6 = pre-MD input files rendered and statically audited without launching MD
+- Whether any failure was a correct hard-gate stop or a false success.
+- agent_overhead_time
+- excluded_compute_time
+- total_wall_time
+- timing_quality: COMPLETE / INCOMPLETE
+- timing_formula used exactly as:
+  agent_overhead_time = agent_final - agent_start - excluded_compute_time
+- failed_command_count
+- key output paths
+- key hard-gate evidence
+- chemistry intake summary path
+- Amber reference notes path
+- unresolved warnings or assumptions
+```

@@ -1,0 +1,221 @@
+# CYPForge Agent Benchmark Prompt: No Outer Shell {{case.name}}
+
+```text
+RUN_ID: {{run_id}}
+ABLATION_CONDITION: No outer shell, no CYPForge skills, module-script-only execution, no MD execution
+START_TIME_MANUAL: record manually when this prompt is sent
+
+You are running one isolated CYPForge benchmark on the local {{case.name}} {{case.ligand_full_name}} system. This test measures whether an agent can reconstruct the practical CYPForge no-MD preprocessing workflow from allowed low-level source code and benchmark inputs after the outer shell route map has been removed.
+
+This is not a test of whether you can call the CYPForge outer shell. The outer shell is forbidden. You must reconstruct the workflow contract yourself, document that reconstruction, then execute the reconstructed no-MD workflow using only allowed low-level module scripts and source files.
+
+Project/source root:
+- CYPForge source root:
+  {{project_root}}
+- You may read and execute allowed files under this root only as specified below.
+- Treat the source root as read-only unless a source-code bug blocks the benchmark. If a source edit is unavoidable, first write the reason, evidence, intended file, and expected behavioral change under RUN_ROOT.
+- Do not write benchmark artifacts into the CYPForge source root.
+
+Input root:
+- {{benchmark_input_root}}/{{case.name}}
+- PDB:
+  {{case.pdb_path}}
+- SDF:
+  {{case.sdf_path}}
+- Read benchmark inputs only from this input root.
+
+Output/run root:
+- {{run_root}}
+- Write all generated files, copied intermediates, logs, ledgers, manifests, reconstruction notes, and reports only under RUN_ROOT.
+- Do not read or write other benchmark run roots.
+- Do not read or use previous run outputs as execution recipes.
+
+Forbidden route maps and forbidden tools:
+- Do not use cypforge.cmd.
+- Do not use scripts\cypforge_run.py.
+- Do not inspect, import, execute, or rely on src\cypforge_core\orchestrator\.
+- Do not inspect or use skills\.
+- Do not inspect or use benchmark/prompts/ or benchmark_prompts/.
+- Do not inspect or use any prior full-condition run roots or their outputs/logs/reports.
+- Do not use any CYPForge custom skill, handoff skill, outer-shell skill, or prior benchmark prompt as an execution recipe.
+- Do not execute RUN_ROOT\17_complex_pre_md_equilibration\run_pre_md.sh or run_pre_md_windows.ps1.
+- Do not launch pmemd.cuda, pmemd, or sander.
+- Do not call global audit, equilibration decision, or production-readiness checks if they require MD run-validation evidence.
+
+Allowed materials:
+- You may inspect and execute scripts\*.py except scripts\cypforge_run.py.
+- You may inspect src\cypforge_core\ except src\cypforge_core\orchestrator\.
+- You may inspect tests\ only as implementation examples for file formats or module behavior, not as a workflow oracle.
+- You may inspect local Amber/AmberTools documentation and use official Amber/AmberTools online resources if local docs are insufficient.
+- You may use ordinary PowerShell, Python, WSL, AmberTools, GPU4PySCF, Multiwfn, tleap, antechamber, parmchk2, cpptraj, or parmed as needed, subject to the no-MD prohibition.
+
+Local environment facts to verify, not blindly assume:
+- WSL user: {{wsl_user}}
+- Amber setup is expected at:
+  {{amber_sh}}
+- Multiwfn is expected at:
+  {{multiwfn_bin}}
+- The input and project paths may contain non-ASCII (e.g. Chinese) characters. Preserve them exactly.
+- Avoid inline piped Python or native-command patterns that can turn Unicode paths into question marks. Prefer real script files, explicit arguments, UTF-8 console setup, and UTF-8/no-BOM text handling.
+
+Expected {{case.name}} facts that must be independently verified:
+- PDB ligand is expected to be {{case.ligand_resname}}, resid {{case.ligand_resid}}, {{case.ligand_atom_count}} atoms, chain {{case.ligand_chain}}.
+- PDB heme is expected to be {{case.heme_resname}}, resid {{case.heme_resid}}, {{case.heme_atom_count}} atoms, chain {{case.heme_chain}}.
+- Axial cysteine is expected to be {{case.axial_cys_resname}}, resid {{case.axial_cys_resid}}, chain {{case.axial_cys_chain}}. (Residue name may already be CYPForge-standardized in this PDB; do not assume raw CYS.)
+- SDF is {{case.ligand_full_name}}, {{case.ligand_atom_count}} atoms, formal charge expected {{case.formal_charge}}, spin expected {{case.spin}}.
+- Expected heme state is {{case.heme_state}}. Evidence: {{case.heme_state_evidence}}
+- Fe-S distance to {{case.axial_cys_resname}}{{case.axial_cys_resid}} is expected to be chemically plausible for P450 thiolate coordination.
+- If your intake contradicts these expected facts, stop and report the conflict.
+
+Benchmark objective:
+Reconstruct and execute the no-outer-shell CYPForge preprocessing workflow for {{case.name}} CYP450 + {{case.heme_resname}} + {{case.ligand_full_name}} through the no-MD endpoint:
+1. environment/import/tool check
+2. heme/CYM preparation
+3. heme LEaP mapping
+4. ligand GAFF2/RESP or equivalent CYPForge ligand parameterization
+5. ligand-aware LEaP mapping
+6. protonation finalization using an explicit decision JSON
+7. solvation/ionization tleap setup and topology generation
+8. pre-MD input rendering
+9. static audit only
+
+Stop after rendering and statically auditing pre-MD inputs. Do not run any MD simulation.
+
+Core experimental hypothesis:
+Removing the outer shell should not primarily increase molecular compute time, which is excluded from timing. It should increase agent overhead through workflow reconstruction, interface discovery, manifest/schema recovery, parameter mismatch repair, and no-MD boundary enforcement. Your reports must preserve evidence for these overhead categories.
+
+Workflow reconstruction requirement:
+Before running any chemistry-changing or topology-generating command, inspect only allowed scripts/source/tests and write:
+  {{run_root}}/derived_no_outer_shell_plan.md
+
+This file must include:
+- allowed files inspected
+- explicit statement that forbidden route maps were not used
+- candidate scripts discovered
+- rejected scripts and reasons
+- inferred input/output dependency graph
+- inferred manifest dependency chain
+- exact no-MD endpoint
+- hard gates before each downstream step
+- uncertainty list
+- anticipated recovery/mismatch risks
+- command-line derivation method, based on each script's --help output and allowed source code
+
+Do not copy command templates from the outer shell, orchestrator, skills, benchmark prompts, or previous benchmark outputs. Derive exact command lines yourself from allowed scripts and allowed source code.
+
+Required intake reports:
+- Before chemistry-changing or topology-generating commands, write:
+  {{run_root}}/system_chemistry_intake.md
+- Include at least: residue inventory, {{case.heme_resname}}/Fe status, heme-state choice, Fe-S distance to {{case.axial_cys_resname}}{{case.axial_cys_resid}}, ligand {{case.ligand_resname}} atom count, SDF atom/element inventory, formal charge assumption, chain IDs actually parsed, and any mismatch with expected facts above.
+- Before finalizing command choices, write:
+  {{run_root}}/amber_reference_notes.md
+- Keep Amber notes concise and command-relevant: tleap, antechamber/parmchk2, GAFF2, RESP/ESP charge handling, cpptraj/parmed static topology inspection, and Amber mdin semantics. References do not permit MD execution.
+
+Scientific hard rules:
+1. SDF is the ligand chemistry source: graph, bond order, aromaticity, formal charge, and atom typing basis.
+2. PDB is the pose and coordinate source.
+3. Do not use PDB bond order as ligand chemistry truth.
+4. Final Amber topology must retain heme Fe.
+5. Confirm {{case.axial_cys_resname}}{{case.axial_cys_resid}}, Fe-S geometry/connectivity, Fe-N geometry/topology, heme integrity, and heme-state-specific atoms (e.g. axial oxo for CPDI, axial dioxygen for DIOXY).
+6. Ligand atom mapping must be identity-safe. Do not assume PDB/SDF/MOL2 atom row order is equivalent unless verified by explicit atom identity or mapping evidence.
+7. RESP/ESP or equivalent ligand charges must match formal charge {{case.formal_charge}} unless intake proves a different formal charge.
+8. tleap success alone is not proof of correctness.
+9. Do not proceed to ligand parameterization until ligand residue identity, chain, atom count, and formal-charge assumption are explicitly recorded.
+10. Do not run restrained MD, free MD, equilibration MD, production MD, pmemd.cuda, pmemd, or sander.
+11. It is acceptable to generate MD input files and audit them statically.
+12. Static mdin audit must check that restrained-stage inputs use a reference restart and iwrap=0, and free-stage inputs do not use -ref.
+13. Stop on hard gate failure. Do not continue to downstream setup after a failed gate.
+
+Known risk classes from full-condition practice, without using previous outputs as recipes:
+- Non-ASCII Windows paths can fail if native command parsing corrupts characters. Preserve execution paths, not only displayed paths.
+- UTF-8 BOM in JSON can break Python json loading. Prefer UTF-8 without BOM for generated JSON files.
+- Protonation decision JSON schemas must match the consuming script's actual expectations. Derive the schema from allowed source/tests, not from prior run outputs.
+- Some setup scripts may generate tleap input files without executing tleap. Verify whether topology/restart files actually exist before downstream rendering.
+- Blank or non-blank chain IDs must be represented in the way each low-level script actually supports. Do not let library defaults override parsed {{case.name}} facts.
+- Generated pre-MD run scripts are artifacts to audit, not scripts to execute.
+
+Execution requirements:
+- Use a fresh context/session and a fresh RUN_ROOT.
+- Set PYTHONPATH to:
+  {{project_root}}/src
+- For CLI commands, omit blank heme/protein chain arguments if the target script defaults to blank. For ligand blank chain, use the script-supported blank-chain mechanism if available.
+- Use explicit Amber/Multiwfn paths when supported:
+  --amber-sh {{amber_sh}}
+  --multiwfn-bin {{multiwfn_bin}}
+- Record each substantive command with working directory, command line, stdout/stderr path, exit code, generated files, PASS/WARN/FAIL decision, and whether the failure was a workflow-reconstruction error, interface/schema error, chemistry hard-gate error, Unicode/path error, compute/tool error, or no-MD boundary risk.
+- Maintain a machine-readable command ledger under RUN_ROOT.
+
+Protonation decision:
+- You must create an explicit protonation decision JSON under RUN_ROOT before protonation finalization.
+- Derive its accepted schema from allowed source/tests.
+- The decision must validate the {{case.name}} input state. Expected residues to verify include: {{case.expected_protonation_residues}}.
+- If the input already has the intended protonation states, record no-op preserve decisions rather than inventing residue changes.
+
+Timing and stopping rules:
+- Primary metric is agent overhead time, not hardware compute time.
+- The human benchmark timer starts when this prompt is sent. If the human provides a manual start timestamp, record it as manual_start_user. If no manual timestamp is provided, immediately record the current system clock as agent_start without estimating backward.
+- Plan mode, workflow reconstruction, source reading, debugging, command construction, report writing, and all recovery work are agent overhead and must NOT be subtracted.
+- Exclude only explicitly measured compute intervals for QM, RESP/ESP, and tleap execution. Do not exclude "context switching", waiting, planning, or reconstruction time.
+- Maintain:
+  {{run_root}}/timing_ledger.jsonl
+- Use exact ISO-8601 timestamps from the local system clock at the moment each event occurs. Include timezone or UTC offset. Do not reconstruct event times later from memory.
+- At minimum, record these event rows in timing_ledger.jsonl in real time:
+  agent_start
+  reconstruction_start
+  reconstruction_complete
+  plan_complete
+  command_start and command_end for every substantive command
+  compute_start and compute_end for each excluded QM/RESP/tleap interval
+  first_success_level_6_evidence
+  agent_final
+- Every command ledger row must include started_at, ended_at, duration_seconds, exit_code, decision, and compute_excluded=true/false.
+- Excluded compute time must be calculated only from compute_start/compute_end pairs or command ledger rows explicitly marked compute_excluded=true.
+- Agent overhead time = agent_final - agent_start - excluded_compute_time. This formula includes plan mode and reconstruction time.
+- The final report must copy timing values directly from timing_ledger.jsonl and command_ledger.jsonl. Do not report "reconstructed", "corrected", "estimated", or manually adjusted timing metrics.
+- If exact timestamps were not recorded at the time of execution, mark timing_quality=INCOMPLETE and report only the exact values available. Do not invent corrected timing.
+- Stop when measured agent overhead time reaches 60 minutes or when agent-initiated failed command count reaches 60, whichever comes first.
+- Count one failed command when an agent-run command exits nonzero, or when a command exits zero but the resulting step fails a hard gate and requires repair/retry.
+- Do not count multiple warning/error lines inside one software log as multiple errors.
+
+Before executing:
+1. Enter Plan mode if available.
+2. State the ablation condition.
+3. State the forbidden route maps and allowed materials.
+4. State the exact no-MD endpoint.
+5. Explain how you will reconstruct the workflow from allowed low-level scripts and source.
+6. Explain how you will verify {{case.name}}-specific residue/chain/charge/heme-state facts.
+7. Explain how you will consult Amber references and record command-relevant conclusions.
+8. Give a concise execution plan.
+9. Then execute the plan.
+
+Final report must include:
+- RUN_ID
+- ABLATION_CONDITION
+- FINAL_STATUS: PASS / WARN / FAIL / TIMEOUT / ERROR_BUDGET_EXCEEDED / OUTER_SHELL_VIOLATION
+- success_level from 0 to 6:
+  0 = did not start
+  1 = environment/import/tool check passed
+  2 = chemistry intake and heme/CYM static checks passed
+  3 = ligand parameterization/charge preparation passed
+  4 = protonation finalization and complex assembly/tleap inputs passed
+  5 = solvation/ionization and static topology audit passed
+  6 = pre-MD input files rendered and statically audited without launching MD
+- workflow_reconstruction_status: PASS / PARTIAL / FAIL
+- outer_shell_violation: YES / NO
+- forbidden_path_accessed: list
+- derived_dag_path
+- whether any failure was a correct hard-gate stop or a false success
+- agent_overhead_time
+- excluded_compute_time
+- total_wall_time
+- timing_quality: COMPLETE / INCOMPLETE
+- timing_formula used exactly as:
+  agent_overhead_time = agent_final - agent_start - excluded_compute_time
+- failed_command_count
+- wrong_turns and recovery points, grouped by workflow reconstruction, interface/schema, chemistry hard gate, Unicode/path, compute/tool, and no-MD boundary
+- key output paths
+- key hard-gate evidence
+- chemistry intake summary path
+- Amber reference notes path
+- unresolved warnings or assumptions
+```

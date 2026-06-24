@@ -1,0 +1,148 @@
+# Amber-Only Agent Benchmark Prompt: No CYPForge {{case.name}}
+
+```text
+RUN_ID: {{run_id}}
+ABLATION_CONDITION: No CYPForge, no outer shell, no CYPForge source/scripts/skills/outputs, AmberTools-only reconstruction, no MD execution
+START_TIME_MANUAL: record manually when this prompt is sent
+
+You are running the bottom-level ablation benchmark for the {{case.name}} {{case.ligand_full_name}} system. This test measures whether an agent can prepare, or correctly hard-stop while attempting to prepare, a CYP450 {{case.heme_state}} heme + {{case.ligand_full_name}} Amber pre-MD setup without using CYPForge at all.
+
+This is expected to be substantially harder than the full and no-outer-shell conditions. Success is not assumed. A scientifically correct hard stop with clear evidence is an acceptable outcome if the missing parameterization or chemistry cannot be completed within the time and safety limits.
+
+Project/source restrictions:
+- Do not use CYPForge code, scripts, configs, tests, parameters, skills, prompts, or previous outputs.
+- Do not inspect or use:
+  {{project_root}}
+  {{run_root_base}}/full_{{case.name}}_*
+  {{run_root_base}}/no_outer_shell_{{case.name}}_*
+- Do not use cypforge.cmd, scripts\cypforge_run.py, CYPForge module scripts, CYPForge heme mol2/frcmod files, CYPForge manifests, or CYPForge prompt files.
+- Do not use any CYPForge custom skill or handoff skill.
+
+Input root:
+- {{benchmark_input_root}}/{{case.name}}
+- PDB:
+  {{case.pdb_path}}
+- SDF:
+  {{case.sdf_path}}
+
+Output/run root:
+- {{run_root}}
+- Write all generated files, logs, ledgers, notes, and reports only under RUN_ROOT.
+- Do not write into the input benchmark folder.
+
+Allowed tools and knowledge sources:
+- AmberTools and Amber documentation.
+- Local Amber/AmberTools manuals.
+- Official Amber/AmberTools online resources if local documentation is insufficient.
+- General chemistry reasoning and public chemical databases if needed for {{case.ligand_full_name}} identity or formal charge.
+- Python/R/PowerShell scripts you create under RUN_ROOT.
+- WSL user {{wsl_user}} and installed tools, if verified.
+
+Forbidden execution:
+- Do not run MD.
+- Do not launch pmemd.cuda, pmemd, sander, production MD, equilibration MD, restrained MD, or minimization MD.
+- Do not execute any generated run script that would call an MD engine.
+- You may generate mdin files and run scripts as static artifacts only.
+
+Local environment facts to verify:
+- WSL user expected: {{wsl_user}}
+- Amber setup expected:
+  {{amber_sh}}
+- The paths may contain non-ASCII characters. Preserve them exactly. Avoid inline piped Python or native-command patterns that can corrupt Unicode paths. Prefer real script files under RUN_ROOT and explicit UTF-8/no-BOM handling.
+
+Expected {{case.name}} chemistry facts that must be independently verified:
+- {{case.heme_resname}} resid {{case.heme_resid}}, chain {{case.heme_chain}}, Fe present. Heme-state evidence: {{case.heme_state_evidence}}
+- {{case.heme_state}} heme state is expected.
+- Axial Cys (residue name in this PDB: {{case.axial_cys_resname}}) resid {{case.axial_cys_resid}}, chain {{case.axial_cys_chain}}, SG present, Fe-S distance chemically plausible. Note: a non-axial CYS may also exist in the file at a different resid; do not confuse it with the axial residue.
+- {{case.ligand_resname}} resid {{case.ligand_resid}}, chain {{case.ligand_chain}}, {{case.ligand_atom_count}} atoms.
+- {{case.ligand_full_name}} SDF has {{case.ligand_atom_count}} atoms, expected formal charge {{case.formal_charge}}, spin {{case.spin}}.
+- If these facts are contradicted, stop and report the conflict.
+
+Objective:
+Attempt to construct a no-MD Amber pre-MD preparation for {{case.name}} CYP450 + {{case.heme_state}} {{case.heme_resname}} + {{case.ligand_full_name}} without CYPForge. The desired endpoint is:
+1. chemistry intake
+2. Amber/AmberTools strategy selection
+3. {{case.ligand_full_name}} ligand parameterization
+4. {{case.heme_state}} heme/CYM/Fe-S treatment strategy
+5. complex assembly strategy
+6. solvation/ionization topology generation if scientifically defensible
+7. pre-MD input rendering and static audit only
+
+However, do not force a false success. If {{case.heme_state}} heme parameterization, Fe-S bonding, heme charges, or topology assembly cannot be justified without CYPForge-derived parameters within the time limit, stop with FINAL_STATUS=FAIL or TIMEOUT and explain the exact missing contract.
+
+Scientific hard gates:
+1. Final topology, if generated, must retain Fe.
+2. {{case.heme_state}} heme must retain its characteristic axial ligands (e.g. axial oxo for CPDI, axial dioxygen for DIOXY, no axial extra ligand for IC6) and axial CYM/thiolate coordination in a chemically explicit way.
+3. Do not silently replace the target heme state with a different heme state, generic HEM, heme b, Fe-free porphyrin, or a dummy ligand.
+4. Do not use generic Amber protein templates if they delete or reinterpret the heme-state-specific Fe chemistry.
+5. {{case.ligand_full_name}} ligand parameterization must preserve SDF chemistry and PDB pose.
+6. Ligand formal charge must be verified as {{case.formal_charge}} unless evidence proves otherwise.
+7. A tleap topology that omits {{case.ligand_resname}}, Fe, expected axial atoms, or {{case.axial_cys_resname}}{{case.axial_cys_resid}} is a hard failure.
+8. A topology that uses unjustified {{case.heme_state}} heme parameters is a hard failure, not a success.
+9. tleap success alone is not proof of correctness.
+10. Do not proceed to downstream pre-MD rendering after any hard gate failure.
+
+Required reports before topology-changing commands:
+- {{run_root}}/system_chemistry_intake.md
+  Include residue inventory, {{case.heme_resname}}/Fe/axial-O status, Fe-O distance (if applicable), Fe-S distance, {{case.ligand_resname}} atom count, SDF inventory, formal charge, spin, chain IDs, and heme-state decision.
+- {{run_root}}/amber_strategy_notes.md
+  Explain the AmberTools strategy considered. Include tleap, antechamber/parmchk2, MCPB.py or metal-center treatment if considered, RESP/ESP, frcmod/mol2 needs, Fe-S bond handling, and why each route is accepted or rejected.
+- {{run_root}}/parameter_gap_analysis.md
+  Identify exactly which parameters are needed for {{case.heme_state}} {{case.heme_resname}} + CYM + {{case.ligand_resname}} and whether each is available, generated, or missing. This is mandatory even if the run fails.
+
+Timing and stopping rules:
+- Hard time limit: 60 minutes agent overhead.
+- This test is intentionally difficult. Do not extend the run to chase full success after the time limit.
+- The human benchmark timer starts when this prompt is sent. If the human provides a manual start timestamp, record it as manual_start_user. If not, immediately record the current system clock as agent_start.
+- Planning, literature/doc reading, chemistry reasoning, debugging, script writing, and report writing all count as agent overhead.
+- Exclude only explicitly measured compute intervals for QM/RESP/ESP or tleap execution.
+- Maintain:
+  {{run_root}}/timing_ledger.jsonl
+- Maintain:
+  {{run_root}}/command_ledger.jsonl
+- Every command ledger row must include started_at, ended_at, duration_seconds, exit_code, decision, and compute_excluded=true/false.
+- Agent overhead time = agent_final - agent_start - excluded_compute_time.
+- If exact timestamps were not recorded in real time, mark timing_quality=INCOMPLETE. Do not reconstruct or correct timing after the fact.
+- Stop when measured agent overhead reaches 60 minutes or failed_command_count reaches 60.
+
+Success levels:
+0 = did not start
+1 = environment/tool check passed
+2 = chemistry intake and {{case.heme_state}}/CYM/{{case.ligand_resname}} facts verified
+3 = {{case.ligand_full_name}} ligand parameterization completed and charge verified
+4 = {{case.heme_state}} heme/CYM parameterization route justified with required parameters available or generated
+5 = complete solvated Amber topology generated and statically verified to contain Fe, expected axial atoms, {{case.axial_cys_resname}}{{case.axial_cys_resid}}, and {{case.ligand_resname}}
+6 = pre-MD input files rendered and statically audited without launching MD
+
+Important interpretation:
+- A lower success level with a correct hard stop is scientifically better than a false success.
+- If the run fails because {{case.heme_state}} heme parameters cannot be generated or justified without CYPForge within 60 minutes, report this as a meaningful outcome: the agent failed to reconstruct the missing biochemical/force-field contract without the CYPForge road.
+
+Before executing:
+1. State the ablation condition.
+2. State all forbidden CYPForge resources.
+3. State the no-MD endpoint and the hard stop policy.
+4. Explain how you will verify {{case.name}} chemistry.
+5. Explain how you will search Amber documentation and choose or reject parameterization strategies.
+6. Give a concise plan.
+7. Execute until success, hard stop, timeout, or error-budget exhaustion.
+
+Final report must include:
+- RUN_ID
+- ABLATION_CONDITION
+- FINAL_STATUS: PASS / WARN / FAIL / TIMEOUT / ERROR_BUDGET_EXCEEDED / CYPFORGE_VIOLATION / FALSE_SUCCESS
+- success_level
+- cypforge_violation: YES / NO
+- forbidden_resource_accessed: list
+- whether failure was a correct hard-gate stop or false success
+- agent_overhead_time
+- excluded_compute_time
+- total_wall_time
+- timing_quality: COMPLETE / INCOMPLETE
+- failed_command_count
+- parameter_gap_summary
+- wrong turns and recovery points
+- key output paths
+- key hard-gate evidence
+- unresolved warnings or assumptions
+```

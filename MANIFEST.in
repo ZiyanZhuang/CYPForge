@@ -1,0 +1,7 @@
+include LICENSE
+include README.md
+include pyproject.toml
+recursive-include src/cypforge/data *
+recursive-include src/cypforge_core/data *.json
+recursive-include src/cypforge_core/_qm *.py
+recursive-include skills *.json *.md

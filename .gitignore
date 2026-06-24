@@ -1,0 +1,67 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+*.egg-info/
+*.egg
+build/
+dist/
+wheels/
+.eggs/
+MANIFEST
+
+# Editable installs
+pip-wheel-metadata/
+
+# Test / coverage tooling
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# Type checkers and linters
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# IDE / editor state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.spyderproject
+.spyproject
+
+# Serena MCP indexer state (user-local, not part of the published source)
+.serena/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# CYPForge run outputs (in case a user puts a run directory inside the repo)
+/cypforge_runs/
+*.run/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Local environment overrides
+.env
+.env.local

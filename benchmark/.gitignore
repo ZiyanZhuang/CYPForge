@@ -1,0 +1,3 @@
+# Local config and rendered prompts must not be committed.
+config.json
+build/
