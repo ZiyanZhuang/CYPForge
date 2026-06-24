@@ -1,59 +1,95 @@
+<p align="center">
+  <img src="assets/cypforge_logo.svg" alt="CYPForge" width="360" />
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/python-%E2%89%A53.9-blue" alt="Python 3.9+">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20WSL%20%7C%20Linux-lightgrey" alt="Platform">
+  <img src="https://img.shields.io/badge/version-1.1.0-brightgreen" alt="Version 1.1.0">
+</p>
+
 # CYPForge
 
-CYPForge is an Amber molecular-dynamics preprocessing framework for cytochrome P450 (CYP450) protein–heme–ligand complexes. It is **not** a replacement for Amber, AmberTools, or cpptraj; it is a strict orchestration and audit shell built on top of an existing simulation toolchain. The codebase decomposes CYP450 preprocessing into ten reproducible, gated modules executed in a fixed order, every stage emits a JSON manifest, and every stage produces a hard `PASS` / `WARN` / `FAIL` gate. The workflow stops on `FAIL` and pauses on `WARN` unless `--auto-accept-warn` is passed at init.
+CYPForge prepares CYP450 protein–heme–ligand systems for Amber molecular dynamics. Feed it a complex PDB and a ligand SDF, and it runs heme/axial-cysteine parameterization, ligand RESP/GAFF2 parameterization, protonation, solvation, ionization, and a 9-stage pre-MD equilibration that finishes with 20 ns of free NPT. Every stage emits a JSON manifest and a hard `PASS` / `WARN` / `FAIL` gate; the workflow stops on `FAIL` and pauses on `WARN` (unless `--auto-accept-warn` is set at init).
 
-## What CYPForge is not
+You bring Amber/AmberTools and Multiwfn. CYPForge drives them.
 
-- **Not a simulation engine.** It never calls `pmemd.cuda`, `pmemd`, or `sander` for production MD. The shell only prepares audited inputs and (optionally) runs a fixed 9-stage pre-MD equilibration where the final stage 09 is a 20 ns free NPT equilibration.
-- **Not a substitute for AmberTools.** `tleap`, `cpptraj`, `antechamber`, and `parmchk2` must be installed and reachable (on Windows, via WSL).
-- **Not a one-click tool.** Many inputs require explicit per-system decisions (heme oxidation state, axial cysteine residue ID, protonation decisions, ligand formal charge). The shell refuses to guess.
+---
 
-## Architecture
+## Quick start with an AI agent
 
-| Layer | Path | Purpose |
-| --- | --- | --- |
-| Orchestration | `src/cypforge_core/` | Workflow manager, module runner, gate checker, agent context builder |
-| Chemistry | `src/cypforge/` | Heme/CYM structure handling, axial-cys identification, Fe–S geometry |
-| CLI wrappers | `scripts/` | One command-line entry point per workflow module |
-| Skills | `skills/cypforge/` | Ordered `.md` skill files + `skills_manifest.json` for agent execution |
-| Tests | `tests/` | pytest suite for orchestration + heme core |
+The fastest path: hand the work to Codex CLI or Claude Code and let it install, configure, and render the bundled benchmark.
 
-The workflow has three cores:
+### Codex CLI
 
-- **Core 1** — heme/CYM preparation (`scripts/heme_only.py`, `scripts/heme_mapping_leapin.py`)
-- **Core 2** — ligand GAFF2/RESP parameterization (`scripts/ligand_gpu4pyscf_esp.py`, `scripts/ligand_mapping_leapin.py`)
-- **Core 3** — protonation finalization → solvation/ionization → pre-MD input rendering → pre-MD run → global audit → equilibration decision → production-readiness check
+```powershell
+git clone https://github.com/ZiyanZhuang/CYPForge.git
+cd CYPForge
+codex
+```
 
-## Install
+Then paste:
 
-CYPForge requires Python ≥ 3.9. WSL with Amber/AmberTools is required to run anything beyond the dry import.
+> Install CYPForge with `pip install -e ".[qm,test]"`, detect my WSL username and the paths to `amber.sh` and `Multiwfn_noGUI`, write `benchmark/config.json` with those values, render `benchmark/build/full_4EJJ.md`, and execute that prompt up to `core3_render_pre_md`. Do not launch pmemd, sander, or any production MD.
+
+### Claude Code
+
+```powershell
+git clone https://github.com/ZiyanZhuang/CYPForge.git
+cd CYPForge
+claude
+```
+
+Same prompt as above. Claude Code's PowerShell + WSL bridge is the smoothest path on Windows.
+
+Ready-to-paste prompts (install / config / benchmark run) live in [`QUICKSTART.md`](QUICKSTART.md) §7.
+
+---
+
+## Manual setup
+
+Requirements: Python ≥ 3.9, WSL with Amber/AmberTools on Windows, Multiwfn (no-GUI build) for Core 2 RESP.
 
 ```powershell
 git clone https://github.com/ZiyanZhuang/CYPForge.git
 cd CYPForge
 pip install -e ".[qm,test]"
+
+# sanity check
+cypforge --version                       # cypforge v1.1.0
+python -B -m pytest tests -q             # 65 passed, 6 skipped is normal
 ```
 
-External prerequisites that `pip` cannot install for you:
+`pip install -e .` puts the `cypforge` console script on your `PATH`. The legacy `cypforge.cmd` wrapper and `python scripts/cypforge_run.py …` still work.
 
-- **Amber / AmberTools** — must provide `tleap`, `pmemd.cuda`, `cpptraj`, `antechamber`, `parmchk2`. Point `AMBER_SH` (or `AMBERHOME`) at the Amber initialization script.
-- **Multiwfn** — only needed for Core 2 RESP fitting. Point `MULTIWFN_BIN` at the `Multiwfn_noGUI` binary.
-- **WSL on Windows** — `wsl.exe` is invoked to run Amber tools. Set `--wsl-user <your-wsl-user>` or `$env:WSL_USER` per machine; **there is no default WSL user**.
+---
 
-Environment variables (PowerShell):
+## Configuration
+
+Set once per shell (or persist in your PowerShell profile / `.bashrc`):
 
 ```powershell
-$env:PYTHONPATH = "<PROJECT_ROOT>\src"
-$env:AMBER_SH = "<path-to>/amber.sh"
-$env:MULTIWFN_BIN = "<path-to>/Multiwfn_noGUI"
+$env:AMBER_SH      = "/home/<wsl-user>/amber25/amber.sh"
+$env:MULTIWFN_BIN  = "/home/<wsl-user>/Multiwfn/Multiwfn_noGUI"
+# optional: override default run-root location
+# $env:CYPFORGE_RUNS_DIR = "D:\cypforge_runs"
 ```
 
-## Quick start
+| Variable | Default | When required |
+| --- | --- | --- |
+| `AMBER_SH` (or `AMBERHOME`) | none | always |
+| `MULTIWFN_BIN` | none | when running Core 2 RESP |
+| `CYPFORGE_RUNS_DIR` | `C:\cypforge_runs` (Win) / `~/cypforge_runs` (POSIX) | only to override the default |
+| `PYTHONPATH` | none | only when running scripts without `pip install -e .` |
+
+On Windows, CYPForge calls `wsl.exe` to run Amber tools. `--wsl-user` (or `$env:WSL_USER`) is required — there is no default WSL user.
+
+---
+
+## Run a system
 
 ```powershell
-cd <PROJECT_ROOT>
-
-# Initialize a run (writes run_config.json + run_manifest.json)
 .\cypforge.cmd init my_run `
   --pdb "<path>\protein_heme_ligand.pdb" `
   --sdf "<path>\ligand.sdf" `
@@ -62,67 +98,72 @@ cd <PROJECT_ROOT>
   --ligand-resname NCT --blank-ligand-chain `
   --formal-charge 0 --spin 1 `
   --wsl-user <your-wsl-user> `
-  --amber-sh "<path-to>/amber.sh" `
-  --multiwfn-bin "<path-to>/Multiwfn_noGUI"
+  --amber-sh "/path/to/amber.sh" `
+  --multiwfn-bin "/path/to/Multiwfn_noGUI"
 
-# Safe path: stops before any MD launch
-.\cypforge.cmd prep-only my_run
-
-# Inspect state
+.\cypforge.cmd prep-only my_run          # stops before MD launch
 .\cypforge.cmd status my_run
 .\cypforge.cmd context my_run > agent_input.json
-
-# Resume after fixing a FAIL / accepting a WARN
-.\cypforge.cmd resume my_run
+.\cypforge.cmd resume my_run             # after fixing a FAIL or accepting a WARN
 ```
 
-Use `--blank-ligand-chain` (not `--ligand-chain ""`) when the ligand has a blank chain ID. The CLI's `--blank-ligand-chain` flag is the supported way to express this.
+Pass `--blank-ligand-chain` (not `--ligand-chain ""`) when the ligand has a blank chain ID.
 
-## Workflow modules
+---
 
-The agent skill order is fixed and enforced by `skills/cypforge/skills_manifest.json` and `src/cypforge_core/orchestrator/models.py`:
+## Workflow
 
-1. `cypforge.environment_check`
-2. `cypforge.core1_prepare_heme_cym`
-3. `cypforge.core2_prepare_ligand_resp_gaff2`
-4. `cypforge.core3_finalize_protonation`
-5. `cypforge.core3_solvate_ionize`
-6. `cypforge.core3_render_pre_md`
-7. `cypforge.core3_run_pre_md`
-8. `cypforge.global_audit`
-9. `cypforge.equilibration_decision`
-10. `cypforge.production_readiness_check`
+Ten stages, fixed order, enforced by `skills/cypforge/skills_manifest.json` and `src/cypforge_core/orchestrator/models.py`:
+
+1. `environment_check`
+2. `core1_prepare_heme_cym` — heme + axial cysteine (CYM)
+3. `core2_prepare_ligand_resp_gaff2` — ligand RESP / GAFF2
+4. `core3_finalize_protonation`
+5. `core3_solvate_ionize`
+6. `core3_render_pre_md`
+7. `core3_run_pre_md` — 9-stage equilibration; stage 09 is 20 ns free NPT
+8. `global_audit`
+9. `equilibration_decision`
+10. `production_readiness_check`
+
+| Layer | Path | Purpose |
+| --- | --- | --- |
+| Orchestration | `src/cypforge_core/` | Workflow manager, module runner, gate checker, agent context builder |
+| Chemistry | `src/cypforge/` | Heme/CYM structure handling, axial-Cys identification, Fe–S geometry |
+| CLI wrappers | `scripts/` | One command-line entry point per workflow module |
+| Skills | `skills/cypforge/` | Ordered `.md` skill files + `skills_manifest.json` for agent execution |
+| Tests | `tests/` | pytest suite |
+
+---
 
 ## Scientific rules
 
-- **SDF is the ligand chemistry source** — graph, bond order, aromaticity, formal charge, and GAFF2 atom typing.
-- **PDB is the conformation source** — coordinates only. Do not use PDB bond order as chemistry truth.
-- The final Amber topology must retain heme **Fe**, and **CYM**'s SG–Fe topology must be confirmed.
+- **SDF is the ligand chemistry source** — graph, bond order, aromaticity, formal charge, GAFF2 atom typing.
+- **PDB is the conformation source** — coordinates only. PDB bond order is not chemistry truth.
+- The final Amber topology must retain heme **Fe** and the **CYM** SG–Fe topology.
 - Ligand atom mapping must be identity-safe; never assume PDB / SDF / MOL2 row order is equivalent.
-- A `tleap` zero exit does **not** prove correctness. Every stage is independently gated by its manifest.
+- A `tleap` zero exit does not prove correctness. Every stage is independently gated by its manifest.
+
+---
 
 ## Heme parameter attribution
 
-The heme/CYP/iron parameters under `src/cypforge/data/heme_params/` (states `IC6`, `DIOXY`, `CPDI`) are derived from:
+The heme / CYP / iron parameters under `src/cypforge/data/heme_params/` (states `IC6`, `DIOXY`, `CPDI`) come from:
 
 > Shahrokh K, Orendt A, Yost GS, Cheatham TE III. *Quantum mechanically derived AMBER-compatible heme parameters for various states of the cytochrome P450 catalytic cycle.* **J. Comput. Chem.** 2012, 33(2): 119–133. [doi:10.1002/jcc.21922](https://doi.org/10.1002/jcc.21922) · PMID 21997754 · PMCID PMC3242737.
 
-When publishing results that use these parameters, please cite the above paper. The complete provenance ledger, including the partial local consistency check status, lives at `src/cypforge/data/heme_params/PROVENANCE.json`.
+Please cite this paper when publishing results that use these parameters. Full provenance: `src/cypforge/data/heme_params/PROVENANCE.json`.
 
-## Status and known limitations
-
-- **Windows-first.** Linux native support is best-effort; the orchestrator is tested mainly against WSL invocation paths.
-- **Console-script entry point.** `pip install -e .` installs a `cypforge` command (declared in `pyproject.toml` as `cypforge = "cypforge_core.cli:main"`); the legacy `cypforge.cmd` batch wrapper and `python scripts\cypforge_run.py …` still work.
-- **`wsl_user` is required** for any WSL step. Pass `--wsl-user` at init; the prior hardcoded default has been removed.
-- The `--blank-ligand-chain` rewrite logic in `_format_cmd` (`src/cypforge_core/orchestrator/runner.py`) and the protonation-decision JSON gate may evolve; treat both as load-bearing pieces of the contract between the shell and the chemistry layer.
+---
 
 ## Documentation
 
-- [`QUICKSTART.md`](QUICKSTART.md) — **start here.** Single-page English walkthrough from clone to first rendered prompt, with agent-driven setup recipes (Claude Code / Codex / Trae).
-- [`README.md`](README.md) — this file (English overview).
-- [`CYPForge_Agent安装使用说明.md`](CYPForge_Agent安装使用说明.md) — 中文安装与使用说明（covers init/prep-only/resume, protonation decision JSON, agent workflow, troubleshooting in depth).
+- [`QUICKSTART.md`](QUICKSTART.md) — single-page English walkthrough from clone to first rendered prompt, with agent-driven setup recipes (Claude Code / Codex / Trae).
+- [`CYPForge_Agent安装使用说明.md`](CYPForge_Agent安装使用说明.md) — 中文安装与使用说明（init / prep-only / resume、质子化决策 JSON、故障排除）.
 - [`benchmark/README.md`](benchmark/README.md) — reproducible agent-driven benchmark (4EJJ / 1Z10 / 1Z11; full / no-outer-shell / no-CYPForge variants).
 - [`skills/cypforge/SKILL.md`](skills/cypforge/SKILL.md) — top-level skill contract loaded by agent runners.
+
+---
 
 ## License
 
