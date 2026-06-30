@@ -57,7 +57,9 @@ desktop.ini
 
 # CYPForge run outputs (in case a user puts a run directory inside the repo)
 /cypforge_runs/
+/runs/
 *.run/
+fort.*
 
 # Notebooks
 .ipynb_checkpoints/

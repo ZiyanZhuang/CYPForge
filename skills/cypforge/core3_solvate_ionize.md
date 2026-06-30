@@ -22,10 +22,13 @@ project_root
 
 ```text
 <PROJECT_ROOT>/scripts/complex_solvation_ionization.py
+<PROJECT_ROOT>/scripts/validate_solvation_tleap.py
 <PROTONATION_MANIFEST_JSON>
 ```
 
-## Command
+## Commands
+
+Render the LEaP input:
 
 ```powershell
 cd "<PROJECT_ROOT>"
@@ -42,16 +45,26 @@ python scripts\complex_solvation_ionization.py `
   --neutralizing-anion Cl-
 ```
 
+Execute and validate LEaP:
+
+```powershell
+cd "<RUN_ROOT>\15_complex_solvation_ionization"
+wsl -e bash -lc "source <AMBER_SETUP_SCRIPT> && cd '<RUN_ROOT_WSL>/15_complex_solvation_ionization' && tleap -f complex_solvation_ionization_leap.in > leap.log 2>&1"
+
+cd "<PROJECT_ROOT>"
+python scripts\validate_solvation_tleap.py `
+  --solvation-manifest-json "<RUN_ROOT>\15_complex_solvation_ionization\solvation_manifest.json"
+```
+
 ## Outputs
 
 ```text
 <RUN_ROOT>/15_complex_solvation_ionization/system_lig_solv.prmtop
 <RUN_ROOT>/15_complex_solvation_ionization/system_lig_solv.rst7
 <RUN_ROOT>/15_complex_solvation_ionization/system_lig_solv_tleap.pdb
-<RUN_ROOT>/15_complex_solvation_ionization/*visual_check*.pdb
 <RUN_ROOT>/15_complex_solvation_ionization/solvation_manifest.json
+<RUN_ROOT>/15_complex_solvation_ionization/solvation_ionization_validation.json
 <RUN_ROOT>/15_complex_solvation_ionization/leap.log
-<RUN_ROOT>/15_complex_solvation_ionization/core3_solvation_decision_report.md
 ```
 
 ## Hard Gates
@@ -66,13 +79,13 @@ leap.log contains unknown residue
 leap.log contains unknown atom type
 leap.log contains missing bond/angle/dihedral parameters
 leap.log creates unexpected heavy atoms
-dry charge differs from expected model charge
+dry charge differs from the manifest-derived expected model charge
 solvated + ions total charge is not approximately zero
-mode11 dry +6 model is not neutralized by six Cl- ions before optional salt
+manifest-derived neutralizing ion count is inconsistent with tLeap output
 HEM/CYM combined charge sanity check fails
 Fe-S topology missing
 Fe-Nporphyrin topology missing
-CYM410 SG has HG
+proximal CYM SG has HG
 ion is placed in heme Fe coordination sphere
 ```
 

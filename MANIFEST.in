@@ -1,7 +1,12 @@
 include LICENSE
 include README.md
+include CHANGELOG.md
 include pyproject.toml
 recursive-include src/cypforge/data *
-recursive-include src/cypforge_core/data *.json
 recursive-include src/cypforge_core/_qm *.py
+recursive-include scripts *.py
+recursive-include benchmark *.md *.py *.sdf *.pdb *.mol2 *.frcmod *.txt *.tmpl
+include benchmark/config.example.json
 recursive-include skills *.json *.md
+prune benchmark/build
+global-exclude *.py[cod]

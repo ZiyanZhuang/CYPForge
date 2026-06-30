@@ -49,12 +49,12 @@ ligand mapping audit passed
 RESP/GAFF2 audit passed
 HEM-CYM charge sanity passed
 HEM-CYM topology passed
-CYM410 has no HG
+manifest-declared proximal CYM has no HG
 GLH/HID local H network has no severe clash
 Stage 09 free equilibration completed
 temperature, density, and volume are stable enough for free equilibration
 Fe-S, Fe-N, and heme plane are stable enough for free equilibration
-NCT did not escape
+manifest-declared ligand did not escape
 no active-site ion invasion
 ```
 

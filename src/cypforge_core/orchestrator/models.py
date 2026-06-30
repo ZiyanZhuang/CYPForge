@@ -22,6 +22,8 @@ class RunConfig:
     # user-provided input files (paths resolved at init time)
     raw_protein_heme_pdb: str = ""
     ligand_template_sdf: str = ""
+    supplied_ligand_mol2: str = ""
+    supplied_ligand_frcmod: str = ""
 
     # heme/CYM settings
     heme_state: str = "IC6"          # IC6 | DIOXY | CPDI | CUSTOM
@@ -33,7 +35,7 @@ class RunConfig:
     trim_transmembrane_confirmed: bool = False
 
     # ligand settings
-    ligand_resname: str = "NCT"
+    ligand_resname: str = ""
     ligand_chain: str = ""
     formal_charge: int = 0
     spin: int = 1
@@ -247,11 +249,13 @@ def build_module_definitions() -> list[ModuleDef]:
                     command_template=(
                         "python scripts/heme_only.py"
                         " --heme-state {heme_state}"
-                        " --output-dir {run_root}\\01_heme_only"
+                        ' --output-dir "{run_root}\\01_heme_only"'
                         " --heme-resname {heme_resname}"
                         " --heme-chain {heme_chain}"
                         " --protein-chain {protein_chain}"
                         " --axial-cys-resid {axial_cys_resid}"
+                        ' --trim-transmembrane-range "{trim_transmembrane_ranges}"'
+                        " {trim_transmembrane_confirmed}"
                         ' "{raw_protein_heme_pdb}"'
                     ),
                     timeout_seconds=120,
@@ -264,7 +268,7 @@ def build_module_definitions() -> list[ModuleDef]:
                         "python scripts/heme_mapping_leapin.py"
                         ' --prepared-pdb "{run_root}\\01_heme_only\\prepared_heme_complex.pdb"'
                         ' --prepare-report-json "{run_root}\\01_heme_only\\prepare_report.json"'
-                        " --output-dir {run_root}\\02_heme_mapping_leapin"
+                        ' --output-dir "{run_root}\\02_heme_mapping_leapin"'
                         " --heme-resname {heme_resname}"
                     ),
                     timeout_seconds=60,
@@ -293,6 +297,8 @@ def build_module_definitions() -> list[ModuleDef]:
                         "python scripts/ligand_gpu4pyscf_esp.py"
                         ' --complex-pdb "{raw_protein_heme_pdb}"'
                         ' --ligand-template-sdf "{ligand_template_sdf}"'
+                        ' --supplied-mol2 "{supplied_ligand_mol2}"'
+                        ' --supplied-frcmod "{supplied_ligand_frcmod}"'
                         " --ligand-resname {ligand_resname}"
                         " --ligand-chain {ligand_chain}"
                         " --formal-charge {formal_charge}"
@@ -301,9 +307,9 @@ def build_module_definitions() -> list[ModuleDef]:
                         " --points-per-atom {points_per_atom}"
                         " --fit-method {fit_method}"
                         " --pre-resp-relax {pre_resp_relax}"
-                        " --output-dir {run_root}\\10_ligand_gpu4pyscf_esp"
+                        ' --output-dir "{run_root}\\10_ligand_gpu4pyscf_esp"'
                     ),
-                    timeout_seconds=600,
+                    timeout_seconds=14400,
                 ),
                 StepDef(
                     name="ligand_mapping_leapin",
@@ -318,7 +324,7 @@ def build_module_definitions() -> list[ModuleDef]:
                         " --ligand-resname {ligand_resname}"
                         " --ligand-chain {ligand_chain}"
                         " --expected-ligand-charge {formal_charge}"
-                        " --output-dir {run_root}\\13_ligand_mapping_leapin"
+                        ' --output-dir "{run_root}\\13_ligand_mapping_leapin"'
                         " --heme-resname {heme_resname}"
                     ),
                     timeout_seconds=60,
@@ -329,7 +335,10 @@ def build_module_definitions() -> list[ModuleDef]:
                 "02_heme_mapping_leapin/heme_mapping_leapin_manifest.json",
             ],
             required_input_files=["{ligand_template_sdf}"],
-            output_manifests=["13_ligand_mapping_leapin/ligand_mapping_leapin_manifest.json"],
+            output_manifests=[
+                "10_ligand_gpu4pyscf_esp/ligand_parameterization_gate.json",
+                "13_ligand_mapping_leapin/ligand_mapping_leapin_manifest.json",
+            ],
         ),
 
         ModuleDef(
@@ -348,7 +357,7 @@ def build_module_definitions() -> list[ModuleDef]:
                         ' --ligand-mapping-manifest-json "{run_root}\\13_ligand_mapping_leapin\\ligand_mapping_leapin_manifest.json"'
                         ' --original-prepared-pdb "{run_root}\\01_heme_only\\prepared_heme_complex.pdb"'
                         ' --protonation-decision-json "{protonation_decision_json}"'
-                        " --output-dir {run_root}\\14_complex_protonation_finalize"
+                        ' --output-dir "{run_root}\\14_complex_protonation_finalize"'
                     ),
                     timeout_seconds=120,
                 ),
@@ -368,11 +377,11 @@ def build_module_definitions() -> list[ModuleDef]:
                 StepDef(
                     name="solvate_ionize",
                     kind="python_script",
-                    description="Solvate and neutralize the complex via tleap",
+                    description="Render solvation and neutralization LEaP input",
                     command_template=(
                         "python scripts/complex_solvation_ionization.py"
                         ' --protonation-manifest-json "{run_root}\\14_complex_protonation_finalize\\protonation_finalize_manifest.json"'
-                        " --output-dir {run_root}\\15_complex_solvation_ionization"
+                        ' --output-dir "{run_root}\\15_complex_solvation_ionization"'
                         " --protein-force-field {protein_force_field}"
                         " --water-leaprc {water_leaprc}"
                         " --water-model {water_model}"
@@ -382,10 +391,33 @@ def build_module_definitions() -> list[ModuleDef]:
                     ),
                     timeout_seconds=300,
                 ),
+                StepDef(
+                    name="run_solvation_tleap",
+                    kind="wsl_command",
+                    description="Execute solvation/neutralization LEaP input",
+                    command_template=(
+                        "cd {run_root_wsl}/15_complex_solvation_ionization && "
+                        "tleap -f complex_solvation_ionization_leap.in > leap.log 2>&1"
+                    ),
+                    timeout_seconds=300,
+                ),
+                StepDef(
+                    name="validate_solvation_tleap",
+                    kind="python_script",
+                    description="Validate solvated topology, coordinates, PDB, charge, and ion count",
+                    command_template=(
+                        "python scripts/validate_solvation_tleap.py"
+                        ' --solvation-manifest-json "{run_root}\\15_complex_solvation_ionization\\solvation_manifest.json"'
+                    ),
+                    timeout_seconds=60,
+                ),
             ],
             required_input_manifests=["14_complex_protonation_finalize/protonation_finalize_manifest.json"],
             required_input_files=[],
-            output_manifests=["15_complex_solvation_ionization/solvation_manifest.json"],
+            output_manifests=[
+                "15_complex_solvation_ionization/solvation_manifest.json",
+                "15_complex_solvation_ionization/solvation_ionization_validation.json",
+            ],
         ),
 
         ModuleDef(
@@ -402,7 +434,7 @@ def build_module_definitions() -> list[ModuleDef]:
                     command_template=(
                         "python scripts/complex_pre_md_equilibration.py"
                         ' --solvation-manifest-json "{run_root}\\15_complex_solvation_ionization\\solvation_manifest.json"'
-                        " --output-dir {run_root}\\17_complex_pre_md_equilibration"
+                        ' --output-dir "{run_root}\\17_complex_pre_md_equilibration"'
                     ),
                     timeout_seconds=120,
                 ),
@@ -427,6 +459,16 @@ def build_module_definitions() -> list[ModuleDef]:
                         "cd {run_root_wsl}/17_complex_pre_md_equilibration && bash run_pre_md.sh"
                     ),
                     timeout_seconds=None,   # long-running: no timeout
+                ),
+                StepDef(
+                    name="validate_pre_md_run",
+                    kind="python_script",
+                    description="Validate pre-MD stage completion markers and generated restarts/trajectories",
+                    command_template=(
+                        "python scripts/validate_complex_pre_md_run.py"
+                        ' --pre-md-manifest-json "{run_root}\\17_complex_pre_md_equilibration\\complex_pre_md_equilibration_manifest.json"'
+                    ),
+                    timeout_seconds=60,
                 ),
             ],
             required_input_manifests=["17_complex_pre_md_equilibration/complex_pre_md_equilibration_manifest.json"],
@@ -454,7 +496,7 @@ def build_module_definitions() -> list[ModuleDef]:
                         ' --solvation-manifest-json "{run_root}\\15_complex_solvation_ionization\\solvation_manifest.json"'
                         ' --pre-md-manifest-json "{run_root}\\17_complex_pre_md_equilibration\\complex_pre_md_equilibration_manifest.json"'
                         ' --pre-md-run-validation-json "{run_root}\\17_complex_pre_md_equilibration\\complex_pre_md_equilibration_run_validation.json"'
-                        f" --output-dir {{run_root}}\\{AUDIT_DIR_REL}"
+                        f' --output-dir "{{run_root}}\\{AUDIT_DIR_REL}"'
                     ),
                     timeout_seconds=300,
                 ),

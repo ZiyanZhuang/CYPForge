@@ -862,7 +862,12 @@ def test_complex_protonation_finalize_records_original_current_mapping_and_resna
     )
     ligand_manifest = data / "ligand_mapping_leapin_manifest.json"
     ligand_manifest.write_text(
-        json.dumps({"output_files": {"combined_pdb": str(current), "leapin": str(leapin)}}),
+        json.dumps(
+            {
+                "output_files": {"combined_pdb": str(current), "leapin": str(leapin)},
+                "residues": {"proximal_cym": {"leap_resid": 410}},
+            }
+        ),
         encoding="utf-8",
     )
     decision = data / "protonation_decision_audit.json"

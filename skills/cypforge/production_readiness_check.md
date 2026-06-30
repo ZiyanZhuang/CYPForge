@@ -23,7 +23,7 @@ Fe-S distribution summary
 Fe-N distribution summary
 heme plane stability summary
 ligand pose stability summary
-NCT reactive geometry summary
+ligand reactive geometry summary
 heme propionate salt-bridge network summary
 GLH419/HID55/HID299/HID386 network summary
 active-site ion invasion audit
@@ -42,7 +42,7 @@ Fe-S distribution is unstable or outside plausible range
 Fe-N distribution is unstable or outside plausible range
 heme plane is severely distorted
 ligand leaves pocket
-NCT reactive geometry becomes uninterpretable
+ligand reactive geometry becomes uninterpretable
 active-site ion invasion occurs
 GLH419/HID55/HID299/HID386 networks collapse into persistent clash
 ligand mapping warning remains unresolved
@@ -67,7 +67,6 @@ pressure is unavailable in pmemd.cuda output and density is used instead
 
 ```text
 production_readiness_state.json
-production_readiness_report.md
 ```
 
 Allowed states:

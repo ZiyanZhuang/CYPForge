@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -286,7 +287,7 @@ def prepare_complex_pre_md_equilibration(
     out_dir = Path(output_dir)
     if not manifest_path.is_file():
         raise FileNotFoundError(f"Missing solvation manifest: {manifest_path}")
-    source_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    source_manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
 
     prmtop = Path(source_manifest["output_files"]["expected_prmtop_after_tleap"])
     rst7 = Path(source_manifest["output_files"]["expected_rst7_after_tleap"])
@@ -296,7 +297,7 @@ def prepare_complex_pre_md_equilibration(
     out_dir.mkdir(parents=True, exist_ok=True)
     config_path = Path(protocol_config_json) if protocol_config_json else out_dir / "pre_md_protocol_config.json"
     if protocol_config_json:
-        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config = json.loads(config_path.read_text(encoding="utf-8-sig"))
     else:
         config = default_pre_md_protocol_config()
         if write_default_config or not config_path.exists():
@@ -420,6 +421,109 @@ def prepare_complex_pre_md_equilibration(
     return manifest
 
 
+def validate_complex_pre_md_run(
+    *,
+    pre_md_manifest_json: str | Path,
+    output_json: str | Path | None = None,
+) -> dict[str, Any]:
+    """Validate the generated pre-MD run directory after run_pre_md.sh exits."""
+    manifest_path = Path(pre_md_manifest_json)
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"Missing pre-MD manifest: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+    pre_md_dir = Path(manifest["output_files"]["manifest_json"]).parent
+    run_dir = Path(manifest["output_files"].get("run_dir") or pre_md_dir / "run")
+    exit_code_path = run_dir / "run_pre_md.exit_code.txt"
+    stage_status_path = run_dir / "stage_status.tsv"
+    started_path = run_dir / "run_pre_md.started_at.txt"
+    finished_path = run_dir / "run_pre_md.finished_at.txt"
+
+    reasons: list[str] = []
+    stages = _parse_stage_status(stage_status_path)
+    expected_stages = [stage for stage in manifest.get("stages", []) if manifest.get("stages_range") == "all"]
+    if not expected_stages:
+        expected_stages = manifest.get("stages", [])
+
+    if not started_path.is_file():
+        reasons.append(f"Missing run start marker: {started_path}")
+    if not finished_path.is_file():
+        reasons.append(f"Missing run finish marker: {finished_path}")
+    if not stage_status_path.is_file():
+        reasons.append(f"Missing stage status table: {stage_status_path}")
+    exit_code = _read_int_file(exit_code_path)
+    if exit_code is None:
+        reasons.append(f"Missing or unreadable run exit code: {exit_code_path}")
+    elif exit_code != 0:
+        reasons.append(f"run_pre_md.sh exit code is nonzero: {exit_code}")
+
+    by_stage = {str(stage.get("stage")): stage for stage in stages}
+    stage_results: list[dict[str, Any]] = []
+    for expected in expected_stages:
+        stage_id = str(expected.get("id"))
+        observed = by_stage.get(stage_id)
+        if observed is None:
+            stage_results.append({
+                "name": stage_id,
+                "status": "missing",
+                "normal_end": False,
+                "fatal_keyword_count": None,
+                "restart_exists": False,
+                "trajectory_exists": False,
+            })
+            reasons.append(f"Missing stage status row: {stage_id}")
+            continue
+        mdout = pre_md_dir / str(observed.get("mdout", ""))
+        restart = pre_md_dir / str(observed.get("restart", ""))
+        fatal_count = _fatal_keyword_count(mdout)
+        normal_end = bool(observed.get("normal_end"))
+        rc = observed.get("exit_code")
+        if rc != 0:
+            reasons.append(f"Stage {stage_id} exit code is nonzero: {rc}")
+        if not normal_end:
+            reasons.append(f"Stage {stage_id} lacks normal-end marker")
+        if fatal_count:
+            reasons.append(f"Stage {stage_id} mdout contains {fatal_count} fatal keyword(s)")
+        if not restart.is_file():
+            reasons.append(f"Stage {stage_id} restart missing: {restart}")
+        traj_name = expected.get("trajectory")
+        traj_exists = True
+        if traj_name:
+            traj_exists = (pre_md_dir / "run" / str(traj_name)).is_file()
+            if not traj_exists:
+                reasons.append(f"Stage {stage_id} trajectory missing: {pre_md_dir / 'run' / str(traj_name)}")
+        stage_results.append({
+            "name": stage_id,
+            "status": "success" if rc == 0 and normal_end and fatal_count == 0 and restart.is_file() and traj_exists else "fail",
+            "exit_code": rc,
+            "normal_end": normal_end,
+            "fatal_keyword_count": fatal_count,
+            "mdout": str(mdout),
+            "restart": str(restart),
+            "restart_exists": restart.is_file(),
+            "trajectory": str(pre_md_dir / "run" / str(traj_name)) if traj_name else "",
+            "trajectory_exists": traj_exists,
+        })
+
+    result = {
+        "schema": "cypforge.complex_pre_md_run_validation.v1",
+        "status": "success" if not reasons else "fail",
+        "input_files": {
+            "pre_md_manifest_json": str(manifest_path),
+            "stage_status_tsv": str(stage_status_path),
+        },
+        "run": {
+            "exit_code": exit_code,
+            "started_marker_exists": started_path.is_file(),
+            "finished_marker_exists": finished_path.is_file(),
+        },
+        "stages": stage_results,
+        "failure_reasons": reasons,
+    }
+    target = Path(output_json) if output_json else pre_md_dir / "complex_pre_md_equilibration_run_validation.json"
+    _write_text(target, json.dumps(result, indent=2, ensure_ascii=False) + "\n")
+    return result
+
+
 def _validate_protocol_config(config: dict[str, Any]) -> dict[str, Any]:
     if config.get("schema") != "cypforge.pre_md_protocol_config.v1":
         raise ValueError("Unsupported pre-MD protocol config schema.")
@@ -491,6 +595,58 @@ def _render_mdin(stage: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _parse_stage_status(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        return []
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if not lines:
+        return []
+    header = lines[0].split("\t")
+    rows: list[dict[str, Any]] = []
+    for raw in lines[1:]:
+        if not raw.strip():
+            continue
+        values = raw.split("\t")
+        row = dict(zip(header, values))
+        row["exit_code"] = _safe_int(row.get("exit_code"))
+        row["normal_end"] = str(row.get("normal_end", "")).strip() in {"1", "true", "True"}
+        rows.append(row)
+    return rows
+
+
+def _read_int_file(path: Path) -> int | None:
+    if not path.is_file():
+        return None
+    return _safe_int(path.read_text(encoding="utf-8", errors="replace").strip())
+
+
+def _safe_int(value: Any) -> int | None:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _fatal_keyword_count(path: Path) -> int:
+    if not path.is_file():
+        return 1
+    text = path.read_text(encoding="utf-8", errors="replace")
+    patterns = [
+        r"\bfatal\b",
+        r"\bnan\b",
+        r"\bvlimit\b",
+        r"shake failure",
+        r"segmentation fault",
+        r"illegal memory access",
+        r"forrtl: severe",
+        r"cuda error",
+        r"cannot open",
+        r"unit \d+ error",
+        r"error termination",
+    ]
+    return sum(len(re.findall(pattern, text, flags=re.I)) for pattern in patterns)
+
+
 def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> str:
     engine = config.get("engine", "pmemd.cuda")
     lines = [
@@ -554,6 +710,12 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
                 '  echo "$rc" > run/run_pre_md.exit_code.txt',
                 "  date -Is > run/run_pre_md.finished_at.txt",
                 '  exit "$rc"',
+                "fi",
+                'if [ "$normal_end" -ne 1 ]; then',
+                f"  echo 'ERROR: Stage {stage['id']} lacks a normal-end marker.' >&2",
+                "  echo 5 > run/run_pre_md.exit_code.txt",
+                "  date -Is > run/run_pre_md.finished_at.txt",
+                "  exit 5",
                 "fi",
             ]
         )

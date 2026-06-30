@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Apply explicit, audited residue rename decisions to the ligand-aware final complex. This module must not infer or auto-correct protonation states.
+Generate an advisory protonation review list and apply only explicit, audited residue-state decisions to the ligand-aware final complex. Recommendations must not be applied automatically.
 
 ## Inputs
 
@@ -23,21 +23,38 @@ project_root
 <PROTONATION_DECISION_JSON>
 ```
 
-## Canonical Mode11 Decision
+## Example Reviewed Decision
 
 ```text
-GLU419 -> GLH419
-HIE55 -> HID55
-HIE299 -> HID299
-HIE386 -> HID386
-GLU275 remains GLU as watchlist
-ASP residues remain ASP, with ASP237 and ASP335 as watchlist
-CYM410 remains CYM
+<CHAIN>:GLU<ORIGINAL_RESID> -> GLH
+<CHAIN>:HIE<ORIGINAL_RESID> -> HID
+watchlist residues remain unchanged unless explicitly confirmed
+manifest-declared proximal CYM remains CYM
 ```
 
-The decision JSON must record both current and original residue numbering for high-risk residues.
+This is an example from one reviewed CYP benchmark, not a default policy.
+The decision JSON must record both current and original residue numbering for
+any high-risk residue selected by the user.
 
 ## Command
+
+Generate the review list first:
+
+```text
+cypforge protonation recommend <RUN_NAME> --ph 7.4
+```
+
+Apply user-confirmed selectors or a reviewed decision JSON:
+
+```text
+cypforge protonation apply <RUN_NAME> --set A:GLU419=GLH
+```
+
+Selectors and recommendation output use the chain and residue number from the
+original prepared PDB. The decision JSON also records the corresponding
+assembled LEaP residue index.
+
+The low-level compatibility command remains:
 
 ```powershell
 cd "<PROJECT_ROOT>"
@@ -53,11 +70,9 @@ python scripts\complex_protonation_finalize.py `
 ## Outputs
 
 ```text
-<RUN_ROOT>/14_complex_protonation_finalize/finalized_complex.pdb
+<RUN_ROOT>/14_complex_protonation_finalize/complex_ligand_protonation_final.pdb
+<RUN_ROOT>/14_complex_protonation_finalize/complex_protonation_final_leap.in
 <RUN_ROOT>/14_complex_protonation_finalize/protonation_finalize_manifest.json
-<RUN_ROOT>/14_complex_protonation_finalize/residue_rename_audit.*
-<RUN_ROOT>/14_complex_protonation_finalize/charge_prediction_audit.*
-<RUN_ROOT>/14_complex_protonation_finalize/core3_protonation_decision_report.md
 ```
 
 ## Hard Gates
@@ -67,16 +82,15 @@ python scripts\complex_protonation_finalize.py `
 ```text
 finalized complex PDB missing
 protonation manifest missing
-residue 419 is not GLH when GLH419 is requested
-residues 55, 299, or 386 are not HID when HID is requested
-residue 410 is not CYM
+requested GLH residue was not renamed to GLH
+requested HID residue was not renamed to HID
+manifest-declared proximal CYM is not retained as CYM
 current/original numbering for renamed residues is absent
 GLH419 lacks a chemically plausible carboxylic proton
 HID residues do not have intended ND1-H / NE2 tautomer state
 GLH419 creates severe H clash
 HID rename creates donor-donor clash or severe H clash
-dry complex charge does not increase by +1 after GLU419 -> GLH419
-mode11 main model dry charge is not approximately +6
+expected dry complex charge change is inconsistent with the decision JSON
 ```
 
 ## Warning Gates
@@ -92,6 +106,8 @@ all HIS states were inherited from defaults without network evidence
 
 ## Failure Behavior
 
+A selector that does not match the chain, current residue name, and original residue number is a hard failure. Generic titratable residue names without site-specific evidence remain in manual-review state.
+
 Stop. Do not solvate, ionize, or run tLeap on a model whose residue renames or charge sanity fail.
 
 ## Audit Artifacts
@@ -102,7 +118,7 @@ Decision report must include:
 protonation decision JSON path
 current/original residue map
 renamed residue table
-GLH419 proton atom and oxygen assignment
+proton atom and oxygen assignment for any requested GLH/ASH residue
 HID ND1/NE2 hydrogen state table
 watchlist residues
 old dry charge

@@ -75,8 +75,10 @@ mask atom counts must be audited
 <RUN_ROOT>/17_complex_pre_md_equilibration/pre_md_protocol_config.json
 <RUN_ROOT>/17_complex_pre_md_equilibration/mdin/*.in
 <RUN_ROOT>/17_complex_pre_md_equilibration/run_pre_md.sh
-<RUN_ROOT>/17_complex_pre_md_equilibration/pre_md_manifest.json
-<RUN_ROOT>/17_complex_pre_md_equilibration/core3_render_pre_md_decision_report.md
+<RUN_ROOT>/17_complex_pre_md_equilibration/run_pre_md_1_8.sh
+<RUN_ROOT>/17_complex_pre_md_equilibration/run_pre_md_9.sh
+<RUN_ROOT>/17_complex_pre_md_equilibration/run_pre_md_windows.ps1
+<RUN_ROOT>/17_complex_pre_md_equilibration/complex_pre_md_equilibration_manifest.json
 ```
 
 ## Hard Gates
@@ -86,7 +88,7 @@ mask atom counts must be audited
 ```text
 any of the nine mdin files is missing
 run_pre_md.sh missing
-pre_md_manifest.json missing
+complex_pre_md_equilibration_manifest.json missing
 restrained stage lacks -ref
 restrained stage uses iwrap=1
 free stage uses -ref

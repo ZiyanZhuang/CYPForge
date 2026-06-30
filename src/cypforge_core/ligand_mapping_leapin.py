@@ -55,6 +55,26 @@ def _mol2_atoms(path: Path) -> list[dict[str, Any]]:
     return atoms
 
 
+def _mol2_atoms_to_pdb_lines(
+    mol2_path: Path,
+    *,
+    chain: str,
+    resid: int,
+    resname: str,
+) -> list[str]:
+    """Build a LEaP PDB residue from the exact MOL2 atom names/coordinates."""
+    lines: list[str] = []
+    for serial, atom in enumerate(_mol2_atoms(mol2_path), start=1):
+        name = str(atom["name"])[:4]
+        element = str(atom["element"] or name[0]).strip().upper()[:2]
+        lines.append(
+            f"ATOM  {serial:5d} {name:>4} {resname:>3} {chain[:1] or ' '}{resid:4d}    "
+            f"{atom['x']:8.3f}{atom['y']:8.3f}{atom['z']:8.3f}"
+            f"  1.00  0.00          {element:>2}"
+        )
+    return lines
+
+
 def _pdb_residue_atoms(entries: list[dict[str, Any]], *, chain: str, resid: int, resname: str) -> list[dict[str, Any]]:
     return [
         entry
@@ -320,7 +340,13 @@ def build_ligand_mapping_and_leapin(
     heme_leap_resid = len(host_map) + 1
     ligand_leap_resid = len(host_map) + 2
     heme_lines = [_rewrite_residue(line, "B", heme_leap_resid, heme_resname) for line in heme_lines]
-    ligand_lines = [_rewrite_residue(line, "C", ligand_leap_resid, ligand_resname) for line in ligand_lines]
+    original_ligand_lines = list(ligand_lines)
+    ligand_lines = _mol2_atoms_to_pdb_lines(
+        ligand_mol2_copy,
+        chain="C",
+        resid=ligand_leap_resid,
+        resname=ligand_resname,
+    )
 
     protein_host_pdb = out_dir / "protein_host_cym.pdb"
     heme_residue_pdb = out_dir / "heme_residue.pdb"
@@ -333,7 +359,12 @@ def build_ligand_mapping_and_leapin(
 
     ligand_check = _ligand_atom_check(
         ligand_mol2=ligand_mol2_copy,
-        ligand_entries=[{**entry, "chain": "C", "resid": ligand_leap_resid} for entry in _pdb_residue_atoms(entries, **dict(chain=source_ligand_key[0], resid=source_ligand_key[1], resname=source_ligand_key[2]))],
+        ligand_entries=_pdb_residue_atoms(
+            _read_entries(ligand_residue_pdb),
+            chain="C",
+            resid=ligand_leap_resid,
+            resname=ligand_resname,
+        ),
         expected_charge=expected_ligand_charge,
     )
     ligand_check_path = out_dir / "ligand_leap_atom_check.json"
@@ -407,6 +438,12 @@ def build_ligand_mapping_and_leapin(
         },
         "pdb_to_leap_residue_map": pdb_to_leap,
         "ligand_atom_check": ligand_check,
+        "ligand_pdb_atom_source": {
+            "policy": "LEaP ligand residue PDB is generated from the charged MOL2 atom names and coordinates.",
+            "reason": "The loaded MOL2 template and PDB residue must share atom names; raw complex-PDB hydrogen names may be non-template names.",
+            "original_complex_pdb_ligand_atom_count": len(original_ligand_lines),
+            "mol2_ligand_atom_count": len(ligand_lines),
+        },
         "cyp_charge_patch": _mol2_charges(cyp_mol2),
         "atom_types": sorted(_mol2_atom_types(heme_mol2)),
         "tleap_bond": f"bond mol.{cys_leap_resid}.SG mol.{heme_leap_resid}.FE",

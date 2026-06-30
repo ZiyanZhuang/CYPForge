@@ -63,9 +63,11 @@ def _format_cmd(template: str, values: dict[str, Any], kind: str = "python_scrip
             continue
         val_str = str(val) if val is not None else ""
         if not val_str.strip():
-            # Remove the --flagname {key} (with optional quotes) from the template
+            # Remove the complete --flag {key} pair, including templates that
+            # quote the placeholder for paths with spaces.
+            placeholder = r'\{' + re.escape(key) + r'\}'
             result = re.sub(
-                r'\s*--\S+\s+\{' + re.escape(key) + r'\}\s*',
+                r'\s*--\S+\s+(?:"' + placeholder + r'"|\'' + placeholder + r"\'|" + placeholder + r')\s*',
                 ' ', result
             )
     # Second pass: substitute remaining placeholders.
@@ -143,11 +145,15 @@ class ModuleRunner:
             "project_root_wsl": _win_to_wsl(self.config.project_root),
             "raw_protein_heme_pdb": self.config.raw_protein_heme_pdb,
             "ligand_template_sdf": self.config.ligand_template_sdf,
+            "supplied_ligand_mol2": self.config.supplied_ligand_mol2,
+            "supplied_ligand_frcmod": self.config.supplied_ligand_frcmod,
             "heme_state": self.config.heme_state,
             "heme_resname": self.config.heme_resname,
             "heme_chain": self.config.heme_chain,
             "protein_chain": self.config.protein_chain,
             "axial_cys_resid": self.config.axial_cys_resid or "",
+            "trim_transmembrane_ranges": self.config.trim_transmembrane_ranges,
+            "trim_transmembrane_confirmed": "--confirm-transmembrane-trim" if self.config.trim_transmembrane_confirmed else "",
             "ligand_resname": self.config.ligand_resname,
             "ligand_chain": self.config.ligand_chain,
             "formal_charge": self.config.formal_charge,
@@ -381,7 +387,17 @@ class ModuleRunner:
         Uses the stdlib ``shlex.split`` with platform-aware POSIX semantics so
         that quoted segments (paths with spaces, RESP basis sets like ``6-31G*``)
         survive intact. On Windows, ``posix=False`` keeps backslashes literal
-        which is what argv consumers expect for ``C:\\...`` paths; on POSIX it
-        applies normal shell escaping rules.
+        which is what argv consumers expect for ``C:\\...`` paths, but it also
+        preserves surrounding quote characters. Strip only balanced outer
+        quotes after tokenization so argv receives the intended path/value.
+        On POSIX it applies normal shell escaping rules.
         """
-        return shlex.split(command, posix=(sys.platform != "win32"))
+        parts = shlex.split(command, posix=(sys.platform != "win32"))
+        if sys.platform == "win32":
+            parts = [
+                token[1:-1]
+                if len(token) >= 2 and token[0] == token[-1] and token[0] in {'"', "'"}
+                else token
+                for token in parts
+            ]
+        return parts

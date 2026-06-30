@@ -205,7 +205,7 @@ def prepare_complex_solvation_ionization(
     return manifest
 
 
-def parse_solvation_tleap_log(leap_log: str | Path) -> dict[str, Any]:
+def parse_solvation_tleap_log(leap_log: str | Path, neutralizing_ion: str = "Cl-") -> dict[str, Any]:
     path = Path(leap_log)
     if not path.is_file():
         return {
@@ -219,6 +219,8 @@ def parse_solvation_tleap_log(leap_log: str | Path) -> dict[str, Any]:
         }
     text = path.read_text(encoding="utf-8", errors="ignore")
     charges = [float(x) for x in re.findall(r"Total unperturbed charge:\s*([-+0-9.eE]+)", text)]
+    ion_pattern = re.escape(neutralizing_ion)
+    ion_match = re.search(rf"(\d+)\s+{ion_pattern} ions required to neutralize", text)
     cl_match = re.search(r"(\d+)\s+Cl- ions required to neutralize", text)
     solvent_match = re.search(r"(\d+)\s+solvent molecules will remain", text)
     exit_match = LEAP_EXIT_RE.search(text)
@@ -232,6 +234,8 @@ def parse_solvation_tleap_log(leap_log: str | Path) -> dict[str, Any]:
         "dry_charge_before_solvation": charges[0] if charges else None,
         "charge_before_ions": charges[-2] if len(charges) >= 2 else None,
         "final_charge": charges[-1] if charges else None,
+        "neutralizing_ion": neutralizing_ion,
+        "neutralizing_ion_required": int(ion_match.group(1)) if ion_match else None,
         "cl_required": int(cl_match.group(1)) if cl_match else None,
         "solvent_molecules_after_ionization": int(solvent_match.group(1)) if solvent_match else None,
         "errors": errors,
@@ -254,8 +258,9 @@ def validate_solvation_tleap_outputs(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     out_dir = Path(manifest["output_files"]["manifest_json"]).parent
     log_path = Path(leap_log) if leap_log else out_dir / "leap.log"
-    parsed = parse_solvation_tleap_log(log_path)
     expected = manifest.get("ionization", {})
+    neutralizing_ion = str(expected.get("neutralizing_anion") or "Cl-")
+    parsed = parse_solvation_tleap_log(log_path, neutralizing_ion=neutralizing_ion)
     files = {
         "prmtop": Path(manifest["output_files"]["expected_prmtop_after_tleap"]),
         "rst7": Path(manifest["output_files"]["expected_rst7_after_tleap"]),
@@ -264,15 +269,15 @@ def validate_solvation_tleap_outputs(
     file_status = {name: path.is_file() for name, path in files.items()}
     reasons = list(parsed.get("failure_reasons", []))
     final_charge = parsed.get("final_charge")
-    expected_cl = expected.get("expected_neutralizing_anion_count")
+    expected_ion_count = expected.get("expected_neutralizing_anion_count")
     if parsed.get("errors") not in (0, None):
         reasons.append(f"LEaP reported Errors={parsed.get('errors')}")
     if parsed.get("errors") is None:
         reasons.append("LEaP exit summary was not found.")
     if final_charge is None or abs(float(final_charge)) > charge_tolerance:
         reasons.append(f"Final charge is not neutral within {charge_tolerance}: {final_charge}")
-    if expected_cl is not None and parsed.get("cl_required") != expected_cl:
-        reasons.append(f"Neutralizing ion count mismatch: expected {expected_cl}, observed {parsed.get('cl_required')}")
+    if expected_ion_count is not None and parsed.get("neutralizing_ion_required") != expected_ion_count:
+        reasons.append(f"Neutralizing ion count mismatch: expected {expected_ion_count}, observed {parsed.get('neutralizing_ion_required')}")
     for name, exists in file_status.items():
         if not exists:
             reasons.append(f"Missing generated {name}: {files[name]}")
@@ -289,6 +294,8 @@ def validate_solvation_tleap_outputs(
             "dry_charge_before_solvation": parsed.get("dry_charge_before_solvation"),
             "charge_before_ions": parsed.get("charge_before_ions"),
             "final_charge": final_charge,
+            "neutralizing_ion": neutralizing_ion,
+            "neutralizing_ion_required": parsed.get("neutralizing_ion_required"),
             "cl_required": parsed.get("cl_required"),
             "solvent_molecules_after_ionization": parsed.get("solvent_molecules_after_ionization"),
             "errors": parsed.get("errors"),

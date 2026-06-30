@@ -16,7 +16,7 @@ amber_setup_script
 
 ```text
 <PRE_MD_DIR>/run_pre_md.sh
-<PRE_MD_DIR>/pre_md_manifest.json
+<PRE_MD_DIR>/complex_pre_md_equilibration_manifest.json
 <PRE_MD_DIR>/mdin/01_min_hydrogens.in
 ...
 <PRE_MD_DIR>/mdin/09_npt_free_equilibration.in
@@ -49,13 +49,14 @@ Start-Process powershell -WindowStyle Hidden -ArgumentList @(
 ## Outputs
 
 ```text
-<PRE_MD_DIR>/*.out
+<PRE_MD_DIR>/run/*.out
 <PRE_MD_DIR>/*.rst7
-<PRE_MD_DIR>/*.nc
-<PRE_MD_DIR>/run_pre_md.stdout
-<PRE_MD_DIR>/run_pre_md.stderr
-<PRE_MD_DIR>/pre_md_run_validation.json
-<PRE_MD_DIR>/core3_run_pre_md_decision_report.md
+<PRE_MD_DIR>/run/*.nc
+<PRE_MD_DIR>/run/stage_status.tsv
+<PRE_MD_DIR>/run/run_pre_md.started_at.txt
+<PRE_MD_DIR>/run/run_pre_md.finished_at.txt
+<PRE_MD_DIR>/run/run_pre_md.exit_code.txt
+<PRE_MD_DIR>/complex_pre_md_equilibration_run_validation.json
 ```
 
 ## Hard Fail Patterns

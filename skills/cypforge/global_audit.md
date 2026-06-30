@@ -74,8 +74,8 @@ solvated + ions total charge is not zero
 any pre-MD stage failed
 critical MD failure pattern found
 ion invaded heme active site
-NCT ligand is missing from final topology
-NCT is not chemically or geometrically plausible
+manifest-declared ligand is missing from final topology
+manifest-declared ligand is not chemically or geometrically plausible
 Fe-S distances are unstable or outside hard range
 Fe-N distances are unstable or outside hard range
 heme plane is severely distorted

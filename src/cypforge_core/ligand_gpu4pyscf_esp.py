@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import math
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -357,6 +359,156 @@ def read_sdf_template(path: str | Path) -> dict[str, Any]:
         "formal_charge_source": "SDF M CHG/atom charge code" if charge_by_atom else "SDF no explicit charge records; inferred neutral",
         "aromatic_bond_count": sum(1 for bond in bonds if int(bond["order"]) == 4),
     }
+
+
+def stage_supplied_ligand_parameters(
+    *,
+    supplied_mol2: str | Path,
+    supplied_frcmod: str | Path,
+    ligand_template_sdf: str | Path,
+    complex_pdb: str | Path,
+    ligand_resname: str,
+    ligand_chain: str,
+    formal_charge: int,
+    output_dir: str | Path,
+) -> dict[str, Any]:
+    """Validate and stage reviewed ligand parameters without running QM/RESP."""
+    mol2_src = Path(supplied_mol2).resolve()
+    frcmod_src = Path(supplied_frcmod).resolve()
+    sdf_src = Path(ligand_template_sdf).resolve()
+    complex_src = Path(complex_pdb).resolve()
+    for path, label in (
+        (mol2_src, "MOL2"),
+        (frcmod_src, "frcmod"),
+        (sdf_src, "SDF"),
+        (complex_src, "complex PDB"),
+    ):
+        if not path.is_file():
+            raise FileNotFoundError(f"Supplied {label} file not found: {path}")
+    if mol2_src.suffix.lower() != ".mol2":
+        raise ValueError(f"Supplied ligand parameter file must be MOL2: {mol2_src}")
+
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    atoms = read_ligand_atoms(mol2_src)
+    sdf = read_sdf_template(sdf_src)
+    mol2_elements = sorted(str(atom["element"]).upper() for atom in atoms)
+    sdf_elements = sorted(str(atom["element"]).upper() for atom in sdf["atoms"])
+    if len(atoms) != len(sdf["atoms"]) or mol2_elements != sdf_elements:
+        raise ValueError(
+            "Supplied MOL2 and ligand SDF differ in atom count or element composition: "
+            f"mol2={len(atoms)} atoms; sdf={len(sdf['atoms'])} atoms"
+        )
+    residue_names = sorted({str(atom["resname"]) for atom in atoms})
+    if residue_names != [ligand_resname]:
+        raise ValueError(
+            f"Supplied MOL2 residue names {residue_names} do not match --ligand-resname {ligand_resname}"
+        )
+    if int(sdf["formal_charge"]) != int(formal_charge):
+        raise ValueError(
+            f"Ligand SDF formal charge {sdf['formal_charge']} does not match requested charge {formal_charge}"
+        )
+    charge_sum = sum(float(atom["charge"]) for atom in atoms)
+    if abs(charge_sum - formal_charge) > RESP_CHARGE_SUM_TOLERANCE_E:
+        raise ValueError(
+            f"Supplied MOL2 charge sum {charge_sum:.8f} does not match formal charge {formal_charge}"
+        )
+
+    sdf_mapping = _map_sdf_atoms_to_complex_atoms_strict(
+        sdf_template=sdf_src,
+        ligand_pdb=mol2_src,
+    )
+    if sdf_mapping.get("status") != "success":
+        raise ValueError("Supplied MOL2 does not satisfy the ligand SDF graph contract.")
+
+    extracted_pdb = out / f"{ligand_resname}_from_confirmed_complex.pdb"
+    extract_ligand_from_complex_pdb(
+        complex_pdb=complex_src,
+        ligand_resname=ligand_resname,
+        ligand_chain=ligand_chain,
+        output_pdb=extracted_pdb,
+    )
+    complex_atoms = read_ligand_atoms(extracted_pdb)
+    mol2_heavy = {atom["name"]: atom for atom in atoms if atom["element"] != "H"}
+    complex_heavy = {atom["name"]: atom for atom in complex_atoms if atom["element"] != "H"}
+    if set(mol2_heavy) != set(complex_heavy):
+        raise ValueError(
+            "Supplied MOL2 heavy-atom names must match the confirmed complex PDB for the no-QM route: "
+            f"missing_in_complex={sorted(set(mol2_heavy) - set(complex_heavy))}; "
+            f"missing_in_mol2={sorted(set(complex_heavy) - set(mol2_heavy))}"
+        )
+    pose_distances: list[float] = []
+    for name, mol2_atom in mol2_heavy.items():
+        complex_atom = complex_heavy[name]
+        if mol2_atom["element"] != complex_atom["element"]:
+            raise ValueError(
+                f"Element mismatch for supplied MOL2 atom {name}: "
+                f"mol2={mol2_atom['element']}; complex={complex_atom['element']}"
+            )
+        pose_distances.append(_distance(mol2_atom, complex_atom))
+    pose_rmsd = _rmsd(pose_distances)
+    pose_max = max(pose_distances) if pose_distances else 0.0
+    if pose_rmsd > MAPPED_POSE_HEAVY_RMSD_TOLERANCE_A:
+        raise ValueError(
+            "Supplied MOL2 is not in the confirmed complex pose: "
+            f"heavy-atom RMSD={pose_rmsd:.6f} A; "
+            f"limit={MAPPED_POSE_HEAVY_RMSD_TOLERANCE_A:.6f} A"
+        )
+
+    frcmod_text = frcmod_src.read_text(encoding="utf-8", errors="replace")
+    recognized_sections = {
+        line.strip().upper()
+        for line in frcmod_text.splitlines()
+        if line.strip().upper() in {"MASS", "BOND", "ANGLE", "DIHE", "IMPROPER", "NONBON"}
+    }
+    if not frcmod_text.strip() or not recognized_sections:
+        raise ValueError(f"Supplied frcmod contains no recognized parameter sections: {frcmod_src}")
+
+    mol2_out = out / f"{ligand_resname}_multiwfn_resp.mol2"
+    frcmod_out = out / f"{ligand_resname}.frcmod"
+    shutil.copy2(mol2_src, mol2_out)
+    shutil.copy2(frcmod_src, frcmod_out)
+
+    def sha256(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    manifest = {
+        "schema": "cypforge.supplied_ligand_parameters.v1",
+        "status": "success",
+        "parameter_source": "user_supplied_reviewed",
+        "qm_esp_resp_executed": False,
+        "ligand_resname": ligand_resname,
+        "atom_count": len(atoms),
+        "element_composition_check": "passed",
+        "sdf_mol2_graph_check": "passed",
+        "sdf_mol2_mapping": sdf_mapping,
+        "confirmed_complex_ligand_pdb": str(extracted_pdb),
+        "complex_pose_check": {
+            "status": "passed",
+            "heavy_atom_name_check": "passed",
+            "heavy_atom_count": len(mol2_heavy),
+            "heavy_atom_rmsd_a": round(pose_rmsd, 6),
+            "heavy_atom_max_distance_a": round(pose_max, 6),
+            "tolerance_a": MAPPED_POSE_HEAVY_RMSD_TOLERANCE_A,
+        },
+        "formal_charge": int(formal_charge),
+        "partial_charge_sum": round(charge_sum, 8),
+        "charge_sum_tolerance_e": RESP_CHARGE_SUM_TOLERANCE_E,
+        "mol2": str(mol2_out),
+        "frcmod": str(frcmod_out),
+        "source_sha256": {
+            "mol2": sha256(mol2_src),
+            "frcmod": sha256(frcmod_src),
+            "sdf": sha256(sdf_src),
+            "complex_pdb": sha256(complex_src),
+        },
+        "frcmod_sections": sorted(recognized_sections),
+    }
+    (out / "supplied_ligand_parameters_manifest.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return manifest
 
 
 def _bond_edges_from_sdf(sdf: dict[str, Any]) -> set[tuple[int, int]]:

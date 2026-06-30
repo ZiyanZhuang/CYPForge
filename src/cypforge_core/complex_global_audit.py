@@ -45,7 +45,9 @@ def run_complex_global_audit(
     outputs["02_residue_protonation_audit_tsv"] = str(out_dir / "02_residue_protonation_audit.tsv")
     _write_tsv(out_dir / "02_residue_protonation_audit.tsv", residue_rows)
 
-    gate2, ligand_rows = _gate_ligand_mapping(ligand_manifest)
+    audit_cfg = _audit_config(ligand_manifest, solvation_manifest)
+
+    gate2, ligand_rows = _gate_ligand_mapping(ligand_manifest, audit_cfg)
     gate_results.append(gate2)
     outputs["03_ligand_mapping_audit_tsv"] = str(out_dir / "03_ligand_mapping_audit.tsv")
     _write_tsv(out_dir / "03_ligand_mapping_audit.tsv", ligand_rows)
@@ -55,12 +57,13 @@ def run_complex_global_audit(
         protonation_manifest,
         solvation_manifest,
         paths,
+        audit_cfg,
     )
     gate_results.append(gate3)
     outputs["01_charge_audit_tsv"] = str(out_dir / "01_charge_audit.tsv")
     _write_tsv(out_dir / "01_charge_audit.tsv", charge_rows)
 
-    gate4, heme_rows = _gate_heme_topology(paths, ligand_manifest)
+    gate4, heme_rows = _gate_heme_topology(paths, ligand_manifest, audit_cfg)
     gate_results.append(gate4)
     outputs["04_heme_cym_topology_audit_tsv"] = str(out_dir / "04_heme_cym_topology_audit.tsv")
     _write_tsv(out_dir / "04_heme_cym_topology_audit.tsv", heme_rows)
@@ -70,12 +73,12 @@ def run_complex_global_audit(
     outputs["05_tleap_log_summary_txt"] = str(out_dir / "05_tleap_log_summary.txt")
     _write_text(out_dir / "05_tleap_log_summary.txt", leap_summary)
 
-    gate6, ion_rows = _gate_solvation_ions(solvation_manifest, final_full_atoms)
+    gate6, ion_rows = _gate_solvation_ions(solvation_manifest, final_full_atoms, audit_cfg)
     gate_results.append(gate6)
     outputs["07_solvation_ion_audit_tsv"] = str(out_dir / "07_solvation_ion_audit.tsv")
     _write_tsv(out_dir / "07_solvation_ion_audit.tsv", ion_rows)
 
-    mask_report, mask_gate = _mask_count_report(final_full_atoms)
+    mask_report, mask_gate = _mask_count_report(final_full_atoms, audit_cfg)
     gate_results.append(mask_gate)
     outputs["06_mask_count_report_txt"] = str(out_dir / "06_mask_count_report.txt")
     _write_text(out_dir / "06_mask_count_report.txt", mask_report)
@@ -85,7 +88,7 @@ def run_complex_global_audit(
     outputs["08_stage_energy_summary_tsv"] = str(out_dir / "08_stage_energy_summary.tsv")
     _write_tsv(out_dir / "08_stage_energy_summary.tsv", stage_rows)
 
-    gate8, geom_rows = _gate_p450_geometry(paths)
+    gate8, geom_rows = _gate_p450_geometry(paths, audit_cfg)
     gate_results.append(gate8)
     outputs["09_p450_geometry_timeseries_tsv"] = str(out_dir / "09_p450_geometry_timeseries.tsv")
     _write_tsv(out_dir / "09_p450_geometry_timeseries.tsv", geom_rows)
@@ -138,16 +141,28 @@ def _resolve_paths(ligand_manifest: dict[str, Any], protonation_manifest: dict[s
     }
 
 
-def _load_default_audit_residue_map() -> dict[int, str]:
-    map_path = Path(__file__).resolve().parent / "data" / "default_audit_residue_map.json"
-    if not map_path.is_file():
-        return {}
-    data = json.loads(map_path.read_text(encoding="utf-8"))
-    return {int(k): v for k, v in data.get("residues", {}).items()}
+def _audit_config(ligand_manifest: dict[str, Any], solvation_manifest: dict[str, Any] | None = None) -> dict[str, Any]:
+    ligand_residue = ligand_manifest.get("residues", {}).get("ligand", {})
+    heme_residue = ligand_manifest.get("residues", {}).get("heme", {})
+    cym_residue = ligand_manifest.get("residues", {}).get("proximal_cym", {})
+    ligand_check = ligand_manifest.get("ligand_atom_check", {})
+    ionization = (solvation_manifest or {}).get("ionization", {})
+    return {
+        "ligand_resname": ligand_residue.get("leap_resname") or ligand_residue.get("source_resname") or "LIG",
+        "ligand_leap_resid": _safe_int(ligand_residue.get("leap_resid")),
+        "heme_resname": heme_residue.get("leap_resname") or heme_residue.get("source_resname") or "HEM",
+        "heme_leap_resid": _safe_int(heme_residue.get("leap_resid")),
+        "cym_resname": cym_residue.get("leap_resname") or "CYM",
+        "cym_leap_resid": _safe_int(cym_residue.get("leap_resid")),
+        "expected_ligand_charge": _safe_float(ligand_check.get("expected_formal_charge")),
+        "expected_neutralizing_anion_count": _safe_int(ionization.get("expected_neutralizing_anion_count")),
+        "neutralizing_anion": ionization.get("neutralizing_anion") or "Cl-",
+        "expected_dry_charge": _safe_float(ionization.get("expected_dry_charge_before_neutralization")),
+    }
 
 
 def _gate_residue_mapping(protonation_manifest: dict[str, Any], atoms: list[dict[str, Any]]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    expected = _load_default_audit_residue_map()
+    expected: dict[int, str] = {}
     manifest_checks = protonation_manifest.get("expected_final_residue_checks", {})
     for resid, info in manifest_checks.items():
         expected[int(resid)] = info.get("found_resname", info.get("expected_resname", str(info)))
@@ -173,7 +188,8 @@ def _gate_residue_mapping(protonation_manifest: dict[str, Any], atoms: list[dict
     return _gate("Gate 1", "file_numbering_residue_mapping", "FAIL" if failed else "PASS", "Residue current/original mapping and final residue names checked."), rows
 
 
-def _gate_ligand_mapping(ligand_manifest: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def _gate_ligand_mapping(ligand_manifest: dict[str, Any], audit_cfg: dict[str, Any] | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    audit_cfg = audit_cfg or _audit_config(ligand_manifest)
     atom_check_path = Path(ligand_manifest["output_files"]["ligand_atom_check_json"])
     atom_check = _read_json(atom_check_path)
     rows = []
@@ -190,14 +206,22 @@ def _gate_ligand_mapping(ligand_manifest: dict[str, Any]) -> tuple[dict[str, Any
             }
         )
     status = "PASS" if atom_check.get("status") == "success" and atom_check.get("charge_check") == "passed" else "FAIL"
-    detail = f"NCT mol2 charge sum={atom_check.get('mol2_charge_sum')}; atom count PDB/MOL2={atom_check.get('pdb_atom_count')}/{atom_check.get('mol2_atom_count')}."
+    detail = f"{audit_cfg['ligand_resname']} mol2 charge sum={atom_check.get('mol2_charge_sum')}; atom count PDB/MOL2={atom_check.get('pdb_atom_count')}/{atom_check.get('mol2_atom_count')}."
     return _gate("Gate 2", "ligand_mapping_resp_gaff2", status, detail), rows
 
 
-def _gate_charge_accounting(ligand_manifest: dict[str, Any], protonation_manifest: dict[str, Any], solvation_manifest: dict[str, Any], paths: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def _gate_charge_accounting(ligand_manifest: dict[str, Any], protonation_manifest: dict[str, Any], solvation_manifest: dict[str, Any], paths: dict[str, Any], audit_cfg: dict[str, Any] | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    audit_cfg = audit_cfg or _audit_config(ligand_manifest, solvation_manifest)
     rows: list[dict[str, Any]] = []
     ligand_atom_check = _read_json(paths["ligand_atom_check"])
-    rows.append({"component": "NCT_mol2", "charge": ligand_atom_check.get("mol2_charge_sum"), "expected": "0 +/- 1e-4", "status": "PASS" if abs(float(ligand_atom_check.get("mol2_charge_sum", 99))) < 1e-4 else "FAIL"})
+    ligand_charge = _safe_float(ligand_atom_check.get("mol2_charge_sum"))
+    expected_ligand_charge = audit_cfg.get("expected_ligand_charge")
+    rows.append({
+        "component": f"{audit_cfg['ligand_resname']}_mol2",
+        "charge": ligand_atom_check.get("mol2_charge_sum"),
+        "expected": f"{expected_ligand_charge} +/- 1e-4" if expected_ligand_charge is not None else "formal charge from ligand manifest",
+        "status": "PASS" if ligand_charge is not None and expected_ligand_charge is not None and abs(ligand_charge - expected_ligand_charge) < 1e-4 else "FAIL",
+    })
     if paths["protstate_validation"].is_file():
         prot = _read_json(paths["protstate_validation"])
         dry_charge = (
@@ -209,24 +233,54 @@ def _gate_charge_accounting(ligand_manifest: dict[str, Any], protonation_manifes
         charges = prot.get("tleap", {}).get("charges_seen", [])
         if charges:
             dry_charge = charges[-1]
-        rows.append({"component": "dry_complex_after_protonation", "charge": dry_charge, "expected": "+6.000002 +/- 0.001", "status": "PASS" if dry_charge is not None and abs(float(dry_charge) - 6.000002) < 0.001 else "FAIL"})
+        expected_dry_charge = audit_cfg.get("expected_dry_charge")
+        dry_charge_float = _safe_float(dry_charge)
+        rows.append({
+            "component": "dry_complex_after_protonation",
+            "charge": dry_charge,
+            "expected": f"{expected_dry_charge} +/- 0.001" if expected_dry_charge is not None else "not recorded",
+            "status": "PASS" if dry_charge_float is not None and expected_dry_charge is not None and abs(dry_charge_float - expected_dry_charge) < 0.001 else "FAIL",
+        })
     solv_val = _read_json(paths["solvation_validation"]) if paths["solvation_validation"].is_file() else {}
-    rows.append({"component": "solvated_after_neutralization", "charge": solv_val.get("tleap", {}).get("final_charge"), "expected": "0 +/- 0.001", "status": "PASS" if abs(float(solv_val.get("tleap", {}).get("final_charge", 99))) < 0.001 else "FAIL"})
-    rows.append({"component": "neutralizing_Cl_count", "charge": solv_val.get("tleap", {}).get("cl_required"), "expected": "6", "status": "PASS" if solv_val.get("tleap", {}).get("cl_required") == 6 else "FAIL"})
-    # Known IC6 charge decomposition from current source artifacts.
-    rows.append({"component": "CYM410+HEM466", "charge": "-2.000000", "expected": "-2.000000", "status": "PASS"})
+    final_charge = _safe_float(solv_val.get("tleap", {}).get("final_charge"))
+    rows.append({"component": "solvated_after_neutralization", "charge": solv_val.get("tleap", {}).get("final_charge"), "expected": "0 +/- 0.001", "status": "PASS" if final_charge is not None and abs(final_charge) < 0.001 else "FAIL"})
+    observed_ion_count = _safe_int(
+        solv_val.get("tleap", {}).get("neutralizing_ion_required")
+        if solv_val.get("tleap", {}).get("neutralizing_ion_required") is not None
+        else solv_val.get("tleap", {}).get("cl_required")
+    )
+    expected_ion_count = audit_cfg.get("expected_neutralizing_anion_count")
+    rows.append({
+        "component": f"neutralizing_{audit_cfg['neutralizing_anion']}_count",
+        "charge": observed_ion_count,
+        "expected": expected_ion_count,
+        "status": "PASS" if expected_ion_count is not None and observed_ion_count == expected_ion_count else "FAIL",
+    })
     failed = any(r["status"] == "FAIL" for r in rows)
     return _gate("Gate 3", "charge_accounting", "FAIL" if failed else "PASS", "Dry, ligand, heme/CYM, and solvated neutralized charges audited."), rows
 
 
-def _gate_heme_topology(paths: dict[str, Any], ligand_manifest: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def _gate_heme_topology(paths: dict[str, Any], ligand_manifest: dict[str, Any], audit_cfg: dict[str, Any] | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    audit_cfg = audit_cfg or _audit_config(ligand_manifest)
     prmtop = _parse_prmtop(paths["solvated_prmtop"])
     rows: list[dict[str, Any]] = []
     atoms = prmtop["atoms"]
     bonds = prmtop["bonds"]
     warned = False
-    fe_atoms = [a for a in atoms if a["name"].strip() == "FE" and a["resname"].strip() == "HEM"]
-    sg_atoms = [a for a in atoms if a["name"].strip() == "SG" and a["resname"].strip() == "CYM" and a["resid"] == 410]
+    heme_resid = audit_cfg.get("heme_leap_resid")
+    cym_resid = audit_cfg.get("cym_leap_resid")
+    fe_atoms = [
+        a for a in atoms
+        if a["name"].strip() == "FE"
+        and a["resname"].strip() == audit_cfg["heme_resname"]
+        and (heme_resid is None or a["resid"] == heme_resid)
+    ]
+    sg_atoms = [
+        a for a in atoms
+        if a["name"].strip() == "SG"
+        and a["resname"].strip() == audit_cfg["cym_resname"]
+        and (cym_resid is None or a["resid"] == cym_resid)
+    ]
     status = "PASS"
     if not fe_atoms or not sg_atoms:
         status = "FAIL"
@@ -237,11 +291,11 @@ def _gate_heme_topology(paths: dict[str, Any], ligand_manifest: dict[str, Any]) 
     bondset = {tuple(sorted(b)) for b in bonds}
     rows.append({"check": "Fe-SG bond exists", "value": f"{fe_idx}-{sg_idx}", "status": "PASS" if tuple(sorted((fe_idx, sg_idx))) in bondset else "FAIL"})
     n_names = {"NA", "NB", "NC", "ND"}
-    for n in [a for a in atoms if a["resname"].strip() == "HEM" and a["name"].strip() in n_names]:
+    for n in [a for a in atoms if a["resid"] == fe_atoms[0]["resid"] and a["name"].strip() in n_names]:
         rows.append({"check": f"Fe-{n['name'].strip()} bond exists", "value": f"{fe_idx}-{n['index']}", "status": "PASS" if tuple(sorted((fe_idx, n["index"]))) in bondset else "FAIL"})
     heme_state = _manifest_heme_state(ligand_manifest)
     if heme_state in HEME_STATE_RULES:
-        heme_top_atoms = [a for a in atoms if a["resname"].strip() == "HEM"]
+        heme_top_atoms = [a for a in atoms if a["resid"] == fe_atoms[0]["resid"]]
         for atom_name, expected_count in HEME_STATE_RULES[heme_state].items():
             observed = sum(1 for a in heme_top_atoms if a["name"].strip() == atom_name)
             rows.append(
@@ -258,7 +312,7 @@ def _gate_heme_topology(paths: dict[str, Any], ligand_manifest: dict[str, Any]) 
         rows.append({"check": "heme_state recorded", "value": "", "status": "WARN"})
         warned = True
     full_atoms = _read_pdb_atoms(paths["final_full_pdb"])
-    geom = _single_frame_heme_geometry(full_atoms)
+    geom = _single_frame_heme_geometry(full_atoms, audit_cfg)
     for key, value in geom.items():
         rows.append({"check": key, "value": value, "status": _heme_geom_status(key, value)})
     failed = any(r["status"] == "FAIL" for r in rows)
@@ -335,37 +389,46 @@ def _manifest_heme_state(ligand_manifest: dict[str, Any]) -> str | None:
     return None
 
 
-def _gate_solvation_ions(solvation_manifest: dict[str, Any], atoms: list[dict[str, Any]]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    fe = _find_atom(atoms, "HEM", None, "FE")
-    sg = _find_atom(atoms, "CYM", 410, "SG")
-    nct = [a for a in atoms if a["resname"] == "NCT"]
-    ion_atoms = [a for a in atoms if a["resname"] in {"Cl-", "Na+"} or a["name"] in {"Cl-", "Na+"}]
+def _gate_solvation_ions(solvation_manifest: dict[str, Any], atoms: list[dict[str, Any]], audit_cfg: dict[str, Any] | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    audit_cfg = audit_cfg or _audit_config({}, solvation_manifest)
+    fe = _find_atom(atoms, audit_cfg["heme_resname"], audit_cfg.get("heme_leap_resid"), "FE")
+    sg = _find_atom(atoms, audit_cfg["cym_resname"], audit_cfg.get("cym_leap_resid"), "SG")
+    ligand_atoms = [a for a in atoms if a["resname"] == audit_cfg["ligand_resname"]]
+    ion_name = str(audit_cfg.get("neutralizing_anion") or "Cl-")
+    ion_atoms = [a for a in atoms if a["resname"] == ion_name or a["name"] == ion_name]
     rows = []
     failed = False
     warned = False
     for ion in ion_atoms:
         d_fe = _dist(ion, fe) if fe else None
         d_sg = _dist(ion, sg) if sg else None
-        d_nct = min((_dist(ion, a) for a in nct), default=None)
-        min_pocket = min(x for x in [d_fe, d_sg, d_nct] if x is not None)
+        d_ligand = min((_dist(ion, a) for a in ligand_atoms), default=None)
+        distances = [x for x in [d_fe, d_sg, d_ligand] if x is not None]
+        min_pocket = min(distances) if distances else None
         st = "PASS"
         if d_fe is not None and d_fe < 3.0:
             st = "FAIL"
             failed = True
-        elif min_pocket < 4.0:
+        elif min_pocket is not None and min_pocket < 4.0:
             st = "WARN"
             warned = True
-        rows.append({"ion_resid": ion["resid"], "ion_name": ion["name"], "dist_fe_a": d_fe, "dist_cym_sg_a": d_sg, "dist_nct_min_a": d_nct, "status": st})
-    rows.append({"ion_resid": "count", "ion_name": "Cl-", "dist_fe_a": len([a for a in ion_atoms if a["resname"] == "Cl-" or a["name"] == "Cl-"]), "dist_cym_sg_a": "", "dist_nct_min_a": "", "status": "PASS"})
+        rows.append({"ion_resid": ion["resid"], "ion_name": ion["name"], "dist_fe_a": d_fe, "dist_cym_sg_a": d_sg, "dist_ligand_min_a": d_ligand, "status": st})
+    expected_count = audit_cfg.get("expected_neutralizing_anion_count")
+    observed_count = len([a for a in ion_atoms if a["resname"] == ion_name or a["name"] == ion_name])
+    rows.append({"ion_resid": "count", "ion_name": ion_name, "observed": observed_count, "expected": expected_count, "status": "PASS" if expected_count is None or observed_count == expected_count else "FAIL"})
+    failed = failed or (expected_count is not None and observed_count != expected_count)
     gate_status = "FAIL" if failed else "WARN" if warned else "PASS"
-    return _gate("Gate 6", "solvation_ions_box_pbc", gate_status, "Ion positions around Fe/CYM/NCT and neutralization count audited."), rows
+    return _gate("Gate 6", "solvation_ions_box_pbc", gate_status, "Ion positions around Fe/CYM/ligand and neutralization count audited."), rows
 
 
-def _mask_count_report(atoms: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
+def _mask_count_report(atoms: list[dict[str, Any]], audit_cfg: dict[str, Any] | None = None) -> tuple[str, dict[str, Any]]:
+    audit_cfg = audit_cfg or {}
     water = sum(1 for a in atoms if a["resname"] == "WAT")
-    ions = sum(1 for a in atoms if a["resname"] in {"Cl-", "Na+"})
+    ion_name = str(audit_cfg.get("neutralizing_anion") or "Cl-")
+    ions = sum(1 for a in atoms if a["resname"] == ion_name or a["name"] == ion_name)
     hyd = sum(1 for a in atoms if a["element"] == "H" or a["name"].startswith("H"))
-    solute_heavy = sum(1 for a in atoms if a["resname"] not in {"WAT", "Cl-", "Na+"} and not (a["element"] == "H" or a["name"].startswith("H")))
+    excluded_solvent_ions = {"WAT", ion_name, "Cl-", "Na+"}
+    solute_heavy = sum(1 for a in atoms if a["resname"] not in excluded_solvent_ions and not (a["element"] == "H" or a["name"].startswith("H")))
     text = (
         "Amber mask audit by PDB approximation\n"
         f"WAT atoms: {water}\n"
@@ -374,7 +437,9 @@ def _mask_count_report(atoms: list[dict[str, Any]]) -> tuple[str, dict[str, Any]
         "Recommended solute-heavy restraint mask: '!(:WAT,Na+,Cl-) & !@H='\n"
         f"Approximate solute-heavy atom count: {solute_heavy}\n"
     )
-    status = "PASS" if solute_heavy > 0 and water > 0 and ions == 6 else "FAIL"
+    expected_ion_count = audit_cfg.get("expected_neutralizing_anion_count")
+    ion_count_ok = expected_ion_count is None or ions == expected_ion_count
+    status = "PASS" if solute_heavy > 0 and water > 0 and ion_count_ok else "FAIL"
     return text, _gate("Gate 7", "restraint_mask_counts", status, "Approximate mask counts from final full-system PDB.")
 
 
@@ -388,36 +453,44 @@ def _gate_pre_md(pre_md_validation: dict[str, Any]) -> tuple[dict[str, Any], lis
     return _gate("Gate 8", "pre_md_run", "FAIL" if failed else "PASS", "All nine pre-MD stages and final cpptraj check audited."), rows
 
 
-def _gate_p450_geometry(paths: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def _gate_p450_geometry(paths: dict[str, Any], audit_cfg: dict[str, Any] | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    audit_cfg = audit_cfg or {}
+    ligand_resname = audit_cfg.get("ligand_resname", "LIG")
     pdb = paths["trajectory_multimodel_pdb"]
     frames = _read_pdb_models(pdb)
     rows: list[dict[str, Any]] = []
     failed = False
     warned = False
-    ref_nct = [a for a in frames[0] if a["resname"] == "NCT" and not a["name"].startswith("H")] if frames else []
+    ref_ligand = [a for a in frames[0] if a["resname"] == ligand_resname and not a["name"].startswith("H")] if frames else []
+    if frames and not ref_ligand:
+        failed = True
+        rows.append({"frame": 1, "ligand_resname": ligand_resname, "status": "FAIL", "reason": "No ligand heavy atoms found in trajectory frame 1"})
     for i, atoms in enumerate(frames, start=1):
-        geom = _single_frame_heme_geometry(atoms)
-        fe = _find_atom(atoms, "HEM", None, "FE")
-        nct = [a for a in atoms if a["resname"] == "NCT" and not a["name"].startswith("H")]
-        nct_fe_min = min((_dist(fe, a) for a in nct), default=None) if fe else None
-        nct_rmsd = _nofit_rmsd(ref_nct, nct) if ref_nct and len(ref_nct) == len(nct) else None
-        row = {"frame": i, **geom, "nct_fe_min_a": nct_fe_min, "nct_heavy_nofit_rmsd_a": nct_rmsd}
+        geom = _single_frame_heme_geometry(atoms, audit_cfg)
+        fe = _find_atom(atoms, audit_cfg.get("heme_resname", "HEM"), audit_cfg.get("heme_leap_resid"), "FE")
+        ligand = [a for a in atoms if a["resname"] == ligand_resname and not a["name"].startswith("H")]
+        ligand_fe_min = min((_dist(fe, a) for a in ligand), default=None) if fe else None
+        ligand_rmsd = _nofit_rmsd(ref_ligand, ligand) if ref_ligand and len(ref_ligand) == len(ligand) else None
+        row = {"frame": i, **geom, "ligand_fe_min_a": ligand_fe_min, "ligand_heavy_nofit_rmsd_a": ligand_rmsd}
         rows.append(row)
         fs = geom.get("fe_sg_a")
         if fs is not None and (fs < 1.8 or fs > 3.0):
             failed = True
-        if nct_fe_min is not None and nct_fe_min > 8.0:
+        if not ligand:
+            failed = True
+        if ligand_fe_min is not None and ligand_fe_min > 8.0:
             warned = True
     status = "FAIL" if failed else "WARN" if warned else "PASS"
-    return _gate("Gate 9", "p450_geometry_free", status, "Fe-S/Fe-N/NCT-Fe geometry time series from free NPT equilibration trajectory."), rows
+    return _gate("Gate 9", "p450_geometry_free", status, "Fe-S/Fe-N/ligand-Fe geometry time series from free NPT equilibration trajectory."), rows
 
 
-def _single_frame_heme_geometry(atoms: list[dict[str, Any]]) -> dict[str, float | None]:
-    fe = _find_atom(atoms, "HEM", None, "FE")
-    sg = _find_atom(atoms, "CYM", 410, "SG")
+def _single_frame_heme_geometry(atoms: list[dict[str, Any]], audit_cfg: dict[str, Any] | None = None) -> dict[str, float | None]:
+    audit_cfg = audit_cfg or {}
+    fe = _find_atom(atoms, audit_cfg.get("heme_resname", "HEM"), audit_cfg.get("heme_leap_resid"), "FE")
+    sg = _find_atom(atoms, audit_cfg.get("cym_resname", "CYM"), audit_cfg.get("cym_leap_resid"), "SG")
     out: dict[str, float | None] = {"fe_sg_a": _dist(fe, sg) if fe and sg else None}
     for n in ["NA", "NB", "NC", "ND"]:
-        atom = _find_atom(atoms, "HEM", None, n)
+        atom = _find_atom(atoms, audit_cfg.get("heme_resname", "HEM"), audit_cfg.get("heme_leap_resid"), n)
         out[f"fe_{n.lower()}_a"] = _dist(fe, atom) if fe and atom else None
     return out
 
@@ -526,6 +599,20 @@ def _nofit_rmsd(ref: list[dict[str, Any]], cur: list[dict[str, Any]]) -> float:
 
 def _read_json(path: str | Path) -> dict[str, Any]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _safe_int(value: Any) -> int | None:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_float(value: Any) -> float | None:
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
 
 
 def _write_tsv(path: Path, rows: list[dict[str, Any]]) -> None:

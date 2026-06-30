@@ -6,6 +6,11 @@ prompt templates (full, no-outer-shell, no-CYPForge), and a small render
 script that converts a template + per-machine config into a ready-to-send
 prompt under `benchmark/build/`.
 
+The committed benchmark structures, SDF files, reviewed 4EJJ MOL2/frcmod, and
+checksum file are public reproducibility assets for the GitHub source release.
+Machine-local files are not release assets: `benchmark/config.json` and
+`benchmark/build/` are gitignored and excluded from source distributions.
+
 The benchmark itself is path-agnostic. Every machine-specific path (project
 root, run root, WSL user, Amber/Multiwfn binaries) lives in
 `benchmark/config.json`, which is gitignored. Templates only contain
@@ -16,7 +21,7 @@ resolved by `render_prompt.py`.
 
 ```
 benchmark/
-  4EJJ/                          # crystal-structure input (CYP2A6 + nicotine, CPDI)
+  4EJJ/                          # structure, SDF, reviewed MOL2/frcmod, checksums
   1Z10/                          # crystal-structure input (CYP + coumarin, IC6)
   1Z11/                          # crystal-structure input (CYP + 8-methoxypsoralen, IC6)
   prompts/
@@ -114,6 +119,10 @@ actual residue name in the PDB, not a hardcoded `CYM`.
 - The per-case scientific facts in `config.example.json` were verified by
   direct inspection of the bundled PDB/SDF files. Treat them as the canonical
   expected-state declarations the agent must match during intake.
+- `4EJJ/NCT_multiwfn_resp.mol2` and `4EJJ/NCT.frcmod` are the reviewed ligand
+  parameters used by the quick no-QM route. `4EJJ/SHA256SUMS.txt` records their
+  file checksums. CYPForge still verifies composition, charge, atom names, and
+  coordinates against the supplied SDF and confirmed complex before use.
 - Rendered prompts (`benchmark/build/<run_id>.md`) are themselves
   reproducible artifacts. To re-run the same benchmark on another machine,
   ship only `config.json` (or share the rendered prompt directly).

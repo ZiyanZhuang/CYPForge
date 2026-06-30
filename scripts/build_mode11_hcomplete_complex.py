@@ -95,13 +95,13 @@ def _format_xyz(line: str, x: float, y: float, z: float) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build a mode-11 hydrogen-complete complex by grafting mode-11 heavy atom coordinates onto an existing complete NCT complex."
+        description="Build a mode-11 hydrogen-complete complex by grafting mode-11 heavy atom coordinates onto an existing complete ligand-bound complex."
     )
     parser.add_argument("--template-complex", required=True)
     parser.add_argument("--mode11-pdb", required=True)
     parser.add_argument("--mode11-hcomplete-mol2")
     parser.add_argument("--template-ligand-mol2", required=True)
-    parser.add_argument("--ligand-resname", default="NCT")
+    parser.add_argument("--ligand-resname", required=True)
     parser.add_argument("--ligand-chain", default="C")
     parser.add_argument("--output-pdb", required=True)
     parser.add_argument("--manifest", required=True)

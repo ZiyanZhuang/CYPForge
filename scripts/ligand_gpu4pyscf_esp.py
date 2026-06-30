@@ -20,6 +20,7 @@ from cypforge_core.ligand_gpu4pyscf_esp import (
     run_complex_sdf_ligand_multiwfn_resp_parameterization,
     run_gpu4pyscf_esp_parameterization,
     run_gpu4pyscf_multiwfn_resp_parameterization,
+    stage_supplied_ligand_parameters,
 )
 
 
@@ -28,6 +29,8 @@ def main() -> int:
     parser.add_argument("--ligand-pose", help="Hydrogen-complete ligand pose MOL2/PDB. MOL2 is required for direct charge injection/frcmod.")
     parser.add_argument("--complex-pdb", help="User-confirmed protein+heme+ligand complex PDB. This is the main second-core input.")
     parser.add_argument("--ligand-template-sdf", help="Ligand SDF chemistry source for bond graph/bond order/GAFF2 typing; coordinates still come from --complex-pdb.")
+    parser.add_argument("--supplied-mol2", help="Reviewed charged ligand MOL2; must be paired with --supplied-frcmod.")
+    parser.add_argument("--supplied-frcmod", help="Reviewed ligand frcmod; must be paired with --supplied-mol2.")
     parser.add_argument("--ligand-resname", default="LIG")
     parser.add_argument("--ligand-chain", default="")
     parser.add_argument("--blank-ligand-chain", action="store_true", help="Select a ligand whose PDB chain ID is blank.")
@@ -56,11 +59,29 @@ def main() -> int:
 
     out = Path(args.output_dir)
     ligand_pose = args.ligand_pose
-    if not ligand_pose and not args.complex_pdb:
+    supplied_pair = bool(args.supplied_mol2 and args.supplied_frcmod)
+    if bool(args.supplied_mol2) != bool(args.supplied_frcmod):
+        parser.error("--supplied-mol2 and --supplied-frcmod must be provided together.")
+    if supplied_pair and not args.complex_pdb:
+        parser.error("--complex-pdb is required when staging supplied parameters.")
+    if not supplied_pair and not ligand_pose and not args.complex_pdb:
         parser.error("Provide --ligand-pose or --complex-pdb.")
 
     try:
-        if args.complex_pdb and args.ligand_template_sdf and not args.prepare_only and args.fit_method == "multiwfn-resp":
+        if supplied_pair:
+            if not args.ligand_template_sdf:
+                parser.error("--ligand-template-sdf is required when staging supplied parameters.")
+            result = stage_supplied_ligand_parameters(
+                supplied_mol2=args.supplied_mol2,
+                supplied_frcmod=args.supplied_frcmod,
+                ligand_template_sdf=args.ligand_template_sdf,
+                complex_pdb=args.complex_pdb,
+                ligand_resname=args.ligand_resname,
+                ligand_chain=args.ligand_chain,
+                formal_charge=args.formal_charge,
+                output_dir=out,
+            )
+        elif args.complex_pdb and args.ligand_template_sdf and not args.prepare_only and args.fit_method == "multiwfn-resp":
             result = run_complex_sdf_ligand_multiwfn_resp_parameterization(
                 complex_pdb=args.complex_pdb,
                 ligand_template_sdf=args.ligand_template_sdf,
@@ -188,6 +209,34 @@ def main() -> int:
             "input_ligand_pose": ligand_pose,
             "formal_charge": args.formal_charge,
         }
+    pre_resp = result.get("pre_resp_relaxation", {}) if isinstance(result, dict) else {}
+    warnings = []
+    if isinstance(pre_resp, dict) and str(pre_resp.get("status", "")).lower() in {"warn", "warning"}:
+        warnings.append({
+            "source": "pre_resp_relaxation",
+            "status": "warning",
+            "gate": pre_resp.get("gate"),
+            "reason": pre_resp.get("reason") or pre_resp.get("error"),
+        })
+    canonical_status = str(result.get("status", "failed"))
+    if canonical_status.lower() in {"success", "prepared", "pass", "passed", "ok"} and warnings:
+        canonical_status = "warning"
+    canonical_manifest = {
+        "schema": "cypforge.ligand_parameterization_gate.v1",
+        "status": canonical_status,
+        "route": "supplied_reviewed_parameters" if supplied_pair else "qm_esp_charge_fit",
+        "qm_esp_resp_executed": bool(result.get("qm_esp_resp_executed", not supplied_pair)),
+        "warnings": warnings,
+        "source_schema": result.get("schema"),
+        "parameter_source": result.get("parameter_source", "calculated" if not supplied_pair else None),
+        "mol2": result.get("mol2"),
+        "frcmod": result.get("frcmod"),
+    }
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "ligand_parameterization_gate.json").write_text(
+        json.dumps(canonical_manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0 if result["status"] in {"prepared", "success"} else 2
 

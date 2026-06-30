@@ -6,7 +6,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/python-%E2%89%A53.9-blue" alt="Python 3.9+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20WSL%20%7C%20Linux-lightgrey" alt="Platform">
-  <img src="https://img.shields.io/badge/version-1.1.0-brightgreen" alt="Version 1.1.0">
+  <img src="https://img.shields.io/badge/version-1.2.0-brightgreen" alt="Version 1.2.0">
 </p>
 
 # CYPForge
@@ -19,7 +19,7 @@ You bring Amber/AmberTools and Multiwfn. CYPForge drives them.
 
 ## Quick start with an AI agent
 
-The fastest path: hand the work to Codex CLI or Claude Code and let it install, configure, and render the bundled benchmark.
+Use an agent to verify an existing environment and render the bundled benchmark.
 
 ### Codex CLI
 
@@ -31,7 +31,7 @@ codex
 
 Then paste:
 
-> Install CYPForge with `pip install -e ".[qm,test]"`, detect my WSL username and the paths to `amber.sh` and `Multiwfn_noGUI`, write `benchmark/config.json` with those values, render `benchmark/build/full_4EJJ.md`, and execute that prompt up to `core3_render_pre_md`. Do not launch pmemd, sander, or any production MD.
+> Check the configured Python, CYPForge, AmberTools, and Amber environment. Do not install or modify software without approval. Use the supplied 4EJJ structure and ligand parameters, skip QM/ESP/RESP, and execute the benchmark through `core3_render_pre_md`. Do not launch pmemd, sander, equilibration, or production MD.
 
 ### Claude Code
 
@@ -57,8 +57,8 @@ cd CYPForge
 pip install -e ".[qm,test]"
 
 # sanity check
-cypforge --version                       # cypforge v1.1.0
-python -B -m pytest tests -q             # 65 passed, 6 skipped is normal
+cypforge --version                       # cypforge v1.2.0
+python -B -m pytest tests -q             # external-data tests may be skipped
 ```
 
 `pip install -e .` puts the `cypforge` console script on your `PATH`. The legacy `cypforge.cmd` wrapper and `python scripts/cypforge_run.py …` still work.
@@ -83,7 +83,7 @@ $env:MULTIWFN_BIN  = "/home/<wsl-user>/Multiwfn/Multiwfn_noGUI"
 | `CYPFORGE_RUNS_DIR` | `C:\cypforge_runs` (Win) / `~/cypforge_runs` (POSIX) | only to override the default |
 | `PYTHONPATH` | none | only when running scripts without `pip install -e .` |
 
-On Windows, CYPForge calls `wsl.exe` to run Amber tools. `--wsl-user` (or `$env:WSL_USER`) is required — there is no default WSL user.
+On Windows, CYPForge calls `wsl.exe` to run Amber tools. Set `--wsl-user` only when the required Amber environment belongs to a non-default WSL user.
 
 ---
 
@@ -93,21 +93,61 @@ On Windows, CYPForge calls `wsl.exe` to run Amber tools. `--wsl-user` (or `$env:
 .\cypforge.cmd init my_run `
   --pdb "<path>\protein_heme_ligand.pdb" `
   --sdf "<path>\ligand.sdf" `
-  --heme-state IC6 --heme-resname HEM `
-  --protein-chain A --heme-chain A --axial-cys-resid 442 `
-  --ligand-resname NCT --blank-ligand-chain `
-  --formal-charge 0 --spin 1 `
-  --wsl-user <your-wsl-user> `
-  --amber-sh "/path/to/amber.sh" `
-  --multiwfn-bin "/path/to/Multiwfn_noGUI"
+  --heme-state IC6 `
+  --ligand-resname LIG
 
-.\cypforge.cmd prep-only my_run          # stops before MD launch
+.\cypforge.cmd prep-only my_run          # pauses after Core 2 if protonation is not confirmed
+.\cypforge.cmd protonation recommend my_run --ph 7.4
+# Review protonation_recommendations.json, then apply only confirmed selectors.
+.\cypforge.cmd protonation apply my_run --set <CHAIN>:<CURRENT><RESID>=<TARGET>
+.\cypforge.cmd prep-only my_run          # resumes and stops before MD launch
 .\cypforge.cmd status my_run
 .\cypforge.cmd context my_run > agent_input.json
-.\cypforge.cmd resume my_run             # after fixing a FAIL or accepting a WARN
 ```
 
-Pass `--blank-ligand-chain` (not `--ligand-chain ""`) when the ligand has a blank chain ID.
+Use `prep-only`, not `resume`, when the endpoint must remain no-MD. `resume`
+continues the full workflow and may enter `core3_run_pre_md`.
+
+For the bundled quick test, pass the reviewed charged MOL2 and matching frcmod
+as advanced inputs. CYPForge checks the SDF/MOL2 chemistry contract, charge sum,
+heavy-atom names, and agreement with the confirmed complex pose before staging
+them under the existing Core 2 filenames. It does not run QM, ESP, RESP,
+`antechamber`, or `parmchk2` on this path.
+
+```powershell
+.\cypforge.cmd init quick_4ejj `
+  --pdb "benchmark\4EJJ\4EJJ_CPD1_NCT.pdb" `
+  --sdf "benchmark\4EJJ\nicotine.sdf" `
+  --heme-state CPDI `
+  --ligand-resname NCT `
+  --supplied-ligand-mol2 "benchmark\4EJJ\NCT_multiwfn_resp.mol2" `
+  --supplied-ligand-frcmod "benchmark\4EJJ\NCT.frcmod"
+```
+
+Run `cypforge init --help-advanced` to show chain, residue, charge, QM, force-field, solvent, and executable overrides. Pass `--blank-ligand-chain` (not `--ligand-chain ""`) when the ligand has a blank chain ID.
+
+Review protonation states before Core 3 continues. The selector uses the chain,
+current residue name, and residue number from the original prepared PDB:
+
+```powershell
+cypforge protonation recommend my_run --ph 7.4
+cypforge protonation apply my_run --set <CHAIN>:<CURRENT><RESID>=<TARGET>
+```
+
+The recommendation command does not modify the structure. The apply command requires a chain, current residue name, original residue number, and target Amber residue name.
+
+Index user-local manuals and export a redacted run diagnosis when needed:
+
+```powershell
+cypforge docs sync amber25.pdf --source amber --document-version 25
+cypforge docs query "unknown residue"
+cypforge profile set amber_sh=/path/to/amber.sh
+cypforge diagnose my_run
+```
+
+Profiles accept only tool/runtime keys and are used as defaults by subsequent
+`init` commands. Manual files remain local; the SQLite FTS5 index is not part of
+the repository or run package.
 
 ---
 
@@ -119,10 +159,10 @@ Ten stages, fixed order, enforced by `skills/cypforge/skills_manifest.json` and 
 2. `core1_prepare_heme_cym` — heme + axial cysteine (CYM)
 3. `core2_prepare_ligand_resp_gaff2` — ligand RESP / GAFF2
 4. `core3_finalize_protonation`
-5. `core3_solvate_ionize`
+5. `core3_solvate_ionize` - render LEaP input, run `tleap`, then validate topology, coordinates, charge, and ions
 6. `core3_render_pre_md`
 7. `core3_run_pre_md` — 9-stage equilibration; stage 09 is 20 ns free NPT
-8. `global_audit`
+8. `global_audit` - manifest-driven residue, ligand, heme, CYM, ion, charge, and geometry gates
 9. `equilibration_decision`
 10. `production_readiness_check`
 
@@ -142,7 +182,8 @@ Ten stages, fixed order, enforced by `skills/cypforge/skills_manifest.json` and 
 - **PDB is the conformation source** — coordinates only. PDB bond order is not chemistry truth.
 - The final Amber topology must retain heme **Fe** and the **CYM** SG–Fe topology.
 - Ligand atom mapping must be identity-safe; never assume PDB / SDF / MOL2 row order is equivalent.
-- A `tleap` zero exit does not prove correctness. Every stage is independently gated by its manifest.
+- A `tleap` zero exit does not prove correctness. Solvation, pre-MD, and global audit outputs are independently gated by their manifests.
+- Raw run folders keep local paths and command lines for reproducibility. Use `cypforge diagnose` before sharing run records because it redacts local paths and secret-like values.
 
 ---
 
@@ -172,7 +213,7 @@ Full provenance: [`src/cypforge/data/heme_params/PROVENANCE.json`](src/cypforge/
 
 ### CYPForge itself
 
-A manuscript is in preparation. Until then, cite the repository URL and the released tag (`v1.1.0`).
+A manuscript is in preparation. Until then, cite the repository URL and the released tag (`v1.2.0`).
 
 ---
 

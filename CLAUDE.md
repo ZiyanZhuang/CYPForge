@@ -4,12 +4,11 @@ CYP450 enzyme Amber MD preprocessing framework — an orchestration and audit la
 
 ## Architecture
 
-- `src/cypforge_core/` — 13 core orchestration modules (public API)
+- `src/cypforge_core/` — core orchestration and audit modules
 - `src/cypforge/` — low-level heme/Cys structure handling
 - `scripts/` — CLI wrappers (one per core module)
 - `skills/cypforge/` — 10 skill `.md` files + `skills_manifest.json` for agent workflow
 - `tests/` — pytest test suite
-- `docs/` — user manual and technical reports (Chinese)
 
 ## Workflow (3 Cores)
 
@@ -35,14 +34,9 @@ WSL is used to run Amber/pmemd.cuda/cpptraj on Windows. The `_win_to_wsl()` func
 cd "<project_root>"
 $env:PYTHONPATH = "<project_root>\src"
 
-# Core 1: Prepare heme complex
-python scripts/heme_only.py --heme-state IC6 --output-dir <dir> <pdb>
-
-# Core 2: Parameterize ligand (requires AMBER_SH and MULTIWFN_BIN)
-python scripts/ligand_gpu4pyscf_esp.py --sdf <sdf> --complex-pdb <pdb> ...
-
-# Core 3: Pre-MD equilibration (9 stages, stage 09 = 20ns free NPT)
-python scripts/complex_pre_md_equilibration.py --solvation-manifest-json <json> --output-dir <dir>
+cypforge init <run_name> --pdb <complex.pdb> --sdf <ligand.sdf> --heme-state IC6
+cypforge prep-only <run_name>
+# Review and apply protonation decisions, then run prep-only again.
 ```
 
 ## Skills Agent Workflow
@@ -54,6 +48,8 @@ The ordered skill modules in `skills/cypforge/skills_manifest.json`:
 
 - SDF = ligand chemistry source (graph, bond order, GAFF2 typing)
 - PDB = conformation source (coordinates only)
+- Supplied MOL2/frcmod inputs skip QM only after charge, chemistry, atom-name, and complex-pose checks pass
+- `prep-only` is the no-MD continuation command; `resume` may enter `core3_run_pre_md`
 - Stage 09 is now 20ns free NPT equilibration (not a 100ps "smoke test")
 - Hard gate FAIL stops the entire workflow
 - This shell never runs production MD — it only prepares audited inputs

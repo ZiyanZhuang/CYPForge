@@ -4,7 +4,8 @@ This is a single-page, runnable walkthrough that takes you from a fresh clone
 to a rendered agent prompt for the bundled 4EJJ benchmark case. It is the
 fastest way to verify your local CYPForge + Amber + WSL + Multiwfn environment.
 
-Estimated time: **5–15 minutes** of human effort (excluding Amber install).
+Allow more than 20 minutes for the first environment review and walkthrough.
+Subsequent no-QM checks are normally faster.
 
 ---
 
@@ -29,22 +30,25 @@ Estimated time: **5–15 minutes** of human effort (excluding Amber install).
 # PowerShell
 git clone https://github.com/ZiyanZhuang/CYPForge.git
 cd CYPForge
-pip install -e ".[qm,test]"
+pip install -e ".[test]"
+# Add the qm and docs extras only when those functions are required:
+# pip install -e ".[qm,docs,test]"
 ```
 
 After install, the `cypforge` console script is on your `PATH`:
 
 ```powershell
 cypforge --version
-# cypforge v1.1.0  (CYPForge 1.1.0)
+# cypforge v1.2.0  (CYPForge 1.2.0)
 ```
 
 Run the test suite to confirm the install:
 
 ```powershell
 $env:PYTHONPATH = "$PWD\src"
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = "1"
 python -B -m pytest tests -q
-# expected: 65 passed, 6 skipped (the 6 skips need real fixtures and are normal)
+# External-data tests may be skipped when their optional fixtures are absent.
 ```
 
 ---
@@ -95,17 +99,18 @@ Fill in these six top-level keys:
 }
 ```
 
-> **Tip — let an agent do this for you.** If you use
+> **Agent-assisted environment check.** If you use
 > [Claude Code](https://claude.com/claude-code),
 > [OpenAI Codex CLI](https://github.com/openai/codex), or
 > [Trae](https://www.trae.ai/), ask:
 >
-> > "Auto-detect my WSL username, amber.sh, and Multiwfn paths, then write
-> > `benchmark/config.json` for me."
+> > "Inspect the existing Python, WSL/Linux, Amber/AmberTools, and Multiwfn
+> > configuration. Do not install or modify software without approval. Report
+> > detected paths, then write `benchmark/config.json` only after I confirm
+> > them."
 >
-> A capable agent will run `wsl -- whoami`, locate `amber.sh` under the WSL
-> home, find `Multiwfn_noGUI` either via `$PATH` or `~/.bashrc`, and patch the
-> file. This is the fastest path — see §7.
+> The agent should report missing tools as environment findings, not silently
+> install replacements.
 
 The bundled `cases.*` block is already populated with verified residue / atom /
 chain / charge / heme-state facts for 4EJJ, 1Z10, and 1Z11. **You do not need
@@ -184,30 +189,27 @@ should not need to add anything.
 
 ## 7. Letting an agent set up CYPForge end-to-end
 
-If you would rather not run any of §3 – §5 by hand, the prompts below have
-been validated against Claude Code on Windows + WSL. They work for Codex CLI
-and Trae with minor wording tweaks.
+The prompts below assume that the environment has already been configured.
 
-**Prompt A — first-time install and config**
+**Prompt A — environment verification and config**
 
 > "I just cloned CYPForge at `<absolute-path>`. Please:
-> 1. Detect my WSL username, my amber.sh path, and my Multiwfn_noGUI path.
-> 2. Run `pip install -e ".[qm,test]"` from the repo root.
-> 3. Run `pytest tests -q` and report pass/skip/fail.
-> 4. Copy `benchmark/config.example.json` to `benchmark/config.json` and
+> 1. Inspect my existing Python, WSL/Linux, Amber/AmberTools, and Multiwfn paths.
+> 2. Do not install or modify software without approval.
+> 3. Run the local test suite and report pass/skip/fail.
+> 4. After I confirm the detected paths, copy `benchmark/config.example.json` to `benchmark/config.json` and
 >    fill in `project_root`, `benchmark_input_root`, `run_root_base`,
 >    `wsl_user`, `amber_sh`, `multiwfn_bin` with the detected values.
-> 5. Render `full_4EJJ`, `no_outer_shell_1Z10`, and `no_cypforge_1Z11` to
->    verify the config works."
+> 5. Render the requested full or no-outer-shell prompt. Do not run MD."
 
 **Prompt B — run the bundled benchmark**
 
 > "Render `benchmark/build/full_4EJJ.md` and execute it from start to the
 > no-MD endpoint. Do not launch pmemd / sander / production MD. Stop at
-> `core3_render_pre_md` and write the global audit summary."
+> `core3_render_pre_md` and summarize the generated manifests."
 
-Both prompts have been used to bootstrap a fresh machine in under 15
-minutes of agent overhead.
+The first environment review may exceed 20 minutes. Repeated runs can reuse
+the confirmed profile and run records.
 
 ---
 

@@ -65,7 +65,7 @@ $env:MULTIWFN_BIN = "/path/to/Multiwfn_noGUI"
 .\cypforge.cmd run my_run
 ```
 
-如果用户只希望生成并审查预 MD 输入文件，而不希望调用 `pmemd.cuda`、`pmemd` 或 `sander` 启动预平衡计算，可以使用 `prep-only` 命令。该命令会执行到 `cypforge.core3_render_pre_md` 为止，并在 `cypforge.core3_run_pre_md` 之前停止。这适合在正式计算前进行结构、参数和输入文件审查。
+如果用户只希望生成并审查预 MD 输入文件，而不希望调用 `pmemd.cuda`、`pmemd` 或 `sander` 启动预平衡计算，可以使用 `prep-only` 命令。缺少质子化决策时，该命令在 Core 2 后暂停；用户完成 `protonation recommend`、人工审核和 `protonation apply` 后，再次执行 `prep-only`，流程会在 `cypforge.core3_run_pre_md` 之前停止。
 
 ```powershell
 .\cypforge.cmd prep-only my_run
@@ -85,7 +85,7 @@ $env:MULTIWFN_BIN = "/path/to/Multiwfn_noGUI"
 .\cypforge.cmd context my_run > agent_input.json
 ```
 
-若流程因 `WARN` 暂停，用户应阅读对应模块的人类可读报告和证据文件，确认警告是否可以接受；若流程因 `FAIL` 停止，用户应先修复输入文件、环境变量、参数化结果或决策 JSON 中的问题。修复后使用 `resume` 命令恢复，控制器会从检查点重新运行阻塞模块并继续下游流程。
+若流程因 `WARN` 暂停，用户应阅读对应模块的人类可读报告和证据文件，确认警告是否可以接受；若流程因 `FAIL` 停止，用户应先修复输入文件、环境变量、参数化结果或决策 JSON 中的问题。完整流程可使用 `resume` 恢复。以 no-MD 为终点时必须再次使用 `prep-only`，因为 `resume` 可能继续进入 `core3_run_pre_md`。
 
 ```powershell
 .\cypforge.cmd resume my_run

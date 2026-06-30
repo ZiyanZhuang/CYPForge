@@ -1,4 +1,4 @@
-"""Thin shim — prefer the installed `cypforge` console script.
+"""Thin shim; prefer the installed `cypforge` console script.
 
 This file exists only so that legacy invocations of
 ``python scripts/cypforge_run.py ...`` continue to work after the CLI was

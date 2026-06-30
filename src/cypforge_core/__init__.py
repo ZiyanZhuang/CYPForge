@@ -3,11 +3,14 @@
 from .heme import prepare_heme
 from .complex_protonation_finalize import (
     analyze_protonation_state,
+    build_protonation_decision_from_selectors,
     finalize_complex_protonation_mapping,
+    recommend_protonation_states,
 )
 from .complex_pre_md_equilibration import (
     default_pre_md_protocol_config,
     prepare_complex_pre_md_equilibration,
+    validate_complex_pre_md_run,
 )
 from .complex_solvation_ionization import (
     prepare_complex_solvation_ionization,
@@ -32,9 +35,12 @@ from .ligand_gpu4pyscf_esp import (
 __all__ = [
     "prepare_heme",
     "analyze_protonation_state",
+    "build_protonation_decision_from_selectors",
     "finalize_complex_protonation_mapping",
+    "recommend_protonation_states",
     "default_pre_md_protocol_config",
     "prepare_complex_pre_md_equilibration",
+    "validate_complex_pre_md_run",
     "prepare_complex_solvation_ionization",
     "validate_solvation_tleap_outputs",
     "build_heme_mapping_and_leapin",
