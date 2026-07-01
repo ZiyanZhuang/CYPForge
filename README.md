@@ -90,19 +90,19 @@ On Windows, CYPForge calls `wsl.exe` to run Amber tools. Set `--wsl-user` only w
 ## Run a system
 
 ```powershell
-.\cypforge.cmd init my_run `
+cypforge init my_run `
   --pdb "<path>\protein_heme_ligand.pdb" `
   --sdf "<path>\ligand.sdf" `
   --heme-state IC6 `
   --ligand-resname LIG
 
-.\cypforge.cmd prep-only my_run          # pauses after Core 2 if protonation is not confirmed
-.\cypforge.cmd protonation recommend my_run --ph 7.4
+cypforge prep-only my_run          # pauses after Core 2 if protonation is not confirmed
+cypforge protonation recommend my_run --ph 7.4
 # Review protonation_recommendations.json, then apply only confirmed selectors.
-.\cypforge.cmd protonation apply my_run --set <CHAIN>:<CURRENT><RESID>=<TARGET>
-.\cypforge.cmd prep-only my_run          # resumes and stops before MD launch
-.\cypforge.cmd status my_run
-.\cypforge.cmd context my_run > agent_input.json
+cypforge protonation apply my_run --set <CHAIN>:<CURRENT><RESID>=<TARGET>
+cypforge prep-only my_run          # resumes and stops before MD launch
+cypforge status my_run
+cypforge context my_run > agent_input.json
 ```
 
 Use `prep-only`, not `resume`, when the endpoint must remain no-MD. `resume`
@@ -115,7 +115,7 @@ them under the existing Core 2 filenames. It does not run QM, ESP, RESP,
 `antechamber`, or `parmchk2` on this path.
 
 ```powershell
-.\cypforge.cmd init quick_4ejj `
+cypforge init quick_4ejj `
   --pdb "benchmark\4EJJ\4EJJ_CPD1_NCT.pdb" `
   --sdf "benchmark\4EJJ\nicotine.sdf" `
   --heme-state CPDI `
@@ -170,7 +170,7 @@ Ten stages, fixed order, enforced by `skills/cypforge/skills_manifest.json` and 
 | --- | --- | --- |
 | Orchestration | `src/cypforge_core/` | Workflow manager, module runner, gate checker, agent context builder |
 | Chemistry | `src/cypforge/` | Heme/CYM structure handling, axial-Cys identification, Fe–S geometry |
-| CLI wrappers | `scripts/` | One command-line entry point per workflow module |
+| CLI | `src/cypforge_core/cli.py` | Installed `cypforge` command plus `cypforge module ...` workflow-module entry points |
 | Skills | `skills/cypforge/` | Ordered `.md` skill files + `skills_manifest.json` for agent execution |
 | Tests | `tests/` | pytest suite |
 

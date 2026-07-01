@@ -224,7 +224,7 @@ the confirmed profile and run records.
    directly in `$HOME`. If `which Multiwfn_noGUI` fails, grep `~/.bashrc` for
    the `Multiwfnpath` export.
 3. **Blank ligand chain.** When the PDB ligand has no chain ID, pass
-   `--blank-ligand-chain` to `cypforge.cmd init`, **not** `--ligand-chain ""`.
+   `--blank-ligand-chain` to `cypforge init`, **not** `--ligand-chain ""`.
    The empty string is interpreted as the literal chain character `" "` by
    some shells.
 4. **Heme-state cross-check.** If you declare `--heme-state IC6` but the PDB
