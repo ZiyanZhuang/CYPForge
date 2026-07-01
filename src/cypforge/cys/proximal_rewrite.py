@@ -23,7 +23,7 @@ def resolve_cyp_mol2_path(cyp_mol2_path: Optional[str] = None) -> Path:
     """
     Resolve CYP mol2 path. Must be passed explicitly with state prefix.
     e.g. params/IC6/IC6-CYP.mol2, params/CPDI/CPDI-CYP.mol2, params/DIOXY/DIOXY-CYP.mol2
-    No generic fallback — state-specific charges must be selected by the caller.
+    No generic fallback - state-specific charges must be selected by the caller.
     """
     if cyp_mol2_path is None:
         raise ValueError(

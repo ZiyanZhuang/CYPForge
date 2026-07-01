@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 
-# ── file checksum ──────────────────────────────────────────────────────────
+# file checksum
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -20,7 +20,7 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-# ── structured write ───────────────────────────────────────────────────────
+# structured write
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -33,7 +33,7 @@ def write_text(path: Path, text: str) -> None:
         handle.write(text)
 
 
-# ── platform path conversion ───────────────────────────────────────────────
+# platform path conversion
 
 def _win_to_wsl(path: str | Path) -> str:
     """Convert a Windows path to its WSL /mnt/<drive>/... equivalent."""
@@ -45,7 +45,7 @@ def _win_to_wsl(path: str | Path) -> str:
     return resolved.as_posix()
 
 
-# ── external tool resolution ───────────────────────────────────────────────
+# external tool resolution
 
 def resolve_amber_sh(amber_sh: str | None = None) -> str:
     if amber_sh:
@@ -74,7 +74,7 @@ def resolve_multiwfn_bin(multiwfn_bin: str | None = None) -> str:
     )
 
 
-# ── geometry utilities ─────────────────────────────────────────────────────
+# geometry utilities
 
 def _distance_dict(a: dict[str, Any], b: dict[str, Any]) -> float:
     """Euclidean distance between two atoms represented as dicts with x/y/z."""
@@ -115,7 +115,7 @@ def kabsch_transform(
     return r, centroid_source, centroid_target
 
 
-# ── frcmod parser ──────────────────────────────────────────────────────────
+# frcmod parser
 
 def parse_frcmod_sections(path: Path) -> dict[str, list[str]]:
     """Parse an Amber frcmod file into named sections."""

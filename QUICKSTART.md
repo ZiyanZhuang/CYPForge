@@ -39,7 +39,7 @@ After install, the `cypforge` console script is on your `PATH`:
 
 ```powershell
 cypforge --version
-# cypforge v1.2.0  (CYPForge 1.2.0)
+# cypforge v1.3.0  (CYPForge 1.3.0)
 ```
 
 Run the test suite to confirm the install:

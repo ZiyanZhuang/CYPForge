@@ -86,13 +86,13 @@ the script did not register.
 
 | Case | Heme state | PDB chains | Ligand | Axial Cys (in PDB) | Why this case |
 | --- | --- | --- | --- | --- | --- |
-| `4EJJ` | CPDI (Fe=O) | blank | nicotine (NCT) | `CYM 410`, Fe–SG = 2.55 Å | Compound I + ATOM-record HEM + blank chains stress test. |
-| `1Z10` | IC6 (resting Fe) | A | coumarin (COU) | `CYP A 439`, Fe–SG = 2.37 Å | Standard IC6 with chain A, HETATM HEM. |
-| `1Z11` | IC6 (resting Fe) | A | 8-methoxypsoralen (8MO) | `CYP A 439`, Fe–SG = 2.37 Å | Second IC6 benchmark with a different ligand chemistry. |
+| `4EJJ` | CPDI (Fe=O) | blank | nicotine (NCT) | `CYM 410`, Fe-SG = 2.55 Angstrom | Compound I + ATOM-record HEM + blank chains stress test. |
+| `1Z10` | IC6 (resting Fe) | A | coumarin (COU) | `CYP A 439`, Fe-SG = 2.37 Angstrom | Standard IC6 with chain A, HETATM HEM. |
+| `1Z11` | IC6 (resting Fe) | A | 8-methoxypsoralen (8MO) | `CYP A 439`, Fe-SG = 2.37 Angstrom | Second IC6 benchmark with a different ligand chemistry. |
 
 ### PDB preprocessing status
 
-The bundled PDB files are **not raw RCSB X-ray entries** — they are CYPForge-prepared
+The bundled PDB files are **not raw RCSB X-ray entries** - they are CYPForge-prepared
 intermediates committed into the benchmark so all three ablation variants start
 from the same input. Two consequences matter for the `no_cypforge` variant in
 particular:
@@ -103,8 +103,8 @@ particular:
   AmberTools-only agent should treat this residue name as a fact of the input
   file, not assume the raw RCSB `CYS` naming.
 - Each PDB *also* contains an unrelated non-axial `CYS` residue (4EJJ: `CYS 53`,
-  1Z10 / 1Z11: `CYS A 82`) that sits ~21 Å from the iron. **Do not** identify
-  the axial Cys by residue name alone — verify by Fe–SG distance (~2.3–2.6 Å).
+  1Z10 / 1Z11: `CYS A 82`) that sits ~21 Angstrom from the iron. **Do not** identify
+  the axial Cys by residue name alone - verify by Fe-SG distance (~2.3-2.6 Angstrom).
 
 Each case's `pdb_preprocessing_note` field in `config.example.json` records this
 explicitly. The prompt templates render the axial residue as

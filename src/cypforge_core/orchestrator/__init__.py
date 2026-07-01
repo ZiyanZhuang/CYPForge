@@ -1,4 +1,4 @@
-"""CYPForge Outer Shell — workflow orchestration layer."""
+"""CYPForge Outer Shell - workflow orchestration layer."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _ts() -> str:
 class CYPForgeOrchestrator:
     """Main workflow controller for CYPForge.
 
-    Coordinates the full Core1 → Core2 → Core3 pipeline:
+    Coordinates the full Core1 -> Core2 -> Core3 pipeline:
     - init: creates run_root and run_manifest.json
     - run: executes all outstanding modules from the start or resume point
     - status: prints a summary table of module states
@@ -44,7 +44,7 @@ class CYPForgeOrchestrator:
         self.workflow = WorkflowManager(config)
         self.gates = GateChecker(config.run_root)
 
-    # ── public API ──────────────────────────────────────────────────────
+    # public API
 
     def init(self) -> RunManifest:
         """Initialize a new run: create directories, write config, return manifest."""
@@ -165,7 +165,7 @@ class CYPForgeOrchestrator:
             record = manifest.modules.get(mod_def.skill_id, {})
             status = record.get("status", "PENDING")
             gate = record.get("gate_result", "-")
-            marker = " ←" if status in ("WARN", "FAIL", "RUNNING") and manifest.workflow_status != "COMPLETED" else ""
+            marker = " ->" if status in ("WARN", "FAIL", "RUNNING") and manifest.workflow_status != "COMPLETED" else ""
             lines.append(
                 f"{mod_def.index:<3} {mod_def.skill_id:<40} {status:<12} {gate:<8}{marker}"
             )
@@ -173,9 +173,9 @@ class CYPForgeOrchestrator:
         if manifest.workflow_status == "COMPLETED":
             lines.append(f"\nCompleted at: {manifest.completed_at}")
         elif manifest.workflow_status == "PAUSED":
-            lines.append("\nWorkflow paused — review WARN modules before resuming.")
+            lines.append("\nWorkflow paused - review WARN modules before resuming.")
         elif manifest.workflow_status == "STOPPED_ON_FAIL":
-            lines.append("\nWorkflow stopped — fix the FAILed module before resuming.")
+            lines.append("\nWorkflow stopped - fix the FAILed module before resuming.")
 
         return "\n".join(lines)
 
@@ -192,7 +192,7 @@ class CYPForgeOrchestrator:
         }
         return build_agent_context(raw_manifest)
 
-    # ── internal ────────────────────────────────────────────────────────
+    # internal
 
     def _execute_module(
         self, mod_def: ModuleDef, manifest: RunManifest
@@ -240,10 +240,13 @@ class CYPForgeOrchestrator:
 
         # Gate checking from output manifests
         manifest_paths_found: dict[str, str] = {}
+        missing_output_manifests: list[str] = []
         for rel_path in mod_def.output_manifests:
             full = Path(self.config.run_root) / rel_path
             if full.is_file():
                 manifest_paths_found[rel_path] = rel_path
+            else:
+                missing_output_manifests.append(rel_path)
 
         if manifest_paths_found:
             gate_status, gate_results, gate_summary = self.gates.check_module_output(
@@ -252,6 +255,11 @@ class CYPForgeOrchestrator:
             record.gate_result = gate_status
             record.manifest_paths = manifest_paths_found
             record.summary = gate_summary
+
+            if missing_output_manifests:
+                all_passed = False
+                for rel_path in missing_output_manifests:
+                    record.errors.append(f"Expected output manifest missing: {rel_path}")
 
             for g in gate_results:
                 if g.status == "FAIL":
@@ -262,8 +270,12 @@ class CYPForgeOrchestrator:
             if gate_status == "FAIL":
                 all_passed = False
         elif mod_def.output_manifests:
-            record.warnings.append("No output manifests found for gate checking.")
-            record.gate_result = "WARN"
+            all_passed = False
+            record.gate_result = "FAIL"
+            record.errors.append(
+                "No output manifests found for gate checking: "
+                + ", ".join(mod_def.output_manifests)
+            )
 
         # Cross-module absolute stop conditions
         module_records = manifest.modules.copy()
@@ -283,7 +295,7 @@ class CYPForgeOrchestrator:
         for sc in stop_checks:
             if sc.status == "FAIL":
                 all_passed = False
-                record.errors.append(f"ABSOLUTE STOP: {sc.name} — {sc.detail}")
+                record.errors.append(f"ABSOLUTE STOP: {sc.name} - {sc.detail}")
 
         # Final status
         if not all_passed:
@@ -299,9 +311,9 @@ class CYPForgeOrchestrator:
         if record.status == "PASS":
             print(f"  Result: PASS")
         elif record.status == "WARN":
-            print(f"  Result: WARN — {len(record.warnings)} warning(s)")
+            print(f"  Result: WARN - {len(record.warnings)} warning(s)")
         else:
-            print(f"  Result: FAIL — {len(record.errors)} error(s)")
+            print(f"  Result: FAIL - {len(record.errors)} error(s)")
 
         return record
 

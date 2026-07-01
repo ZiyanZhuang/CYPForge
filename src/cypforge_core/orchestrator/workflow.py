@@ -1,4 +1,4 @@
-"""WorkflowManager — state machine, checkpoint persistence, resume logic."""
+"""WorkflowManager - state machine, checkpoint persistence, resume logic."""
 
 from __future__ import annotations
 
@@ -29,6 +29,25 @@ def _load_skills_manifest(project_root: str) -> dict[str, Any]:
     return json.loads(manifest_path.read_text(encoding="utf-8"))
 
 
+def _is_windows_absolute_path(path: str) -> bool:
+    """Return True for drive-qualified Windows paths, even on POSIX hosts."""
+    return len(path) >= 3 and path[1] == ":" and path[2] in {"\\", "/"} and path[0].isalpha()
+
+
+def _resolve_run_dependency(run_root: Path, path_str: str) -> Path:
+    """Resolve a dependency path from a module definition or persisted config.
+
+    Module definitions use run-root-relative paths for generated files, while
+    run_config.json stores user input files as absolute paths. Keep those two
+    cases distinct so a source-tree or benchmark config can choose absolute
+    paths without being accidentally nested under run_root.
+    """
+    path = Path(path_str)
+    if path.is_absolute() or _is_windows_absolute_path(path_str):
+        return path
+    return run_root / path
+
+
 class WorkflowManager:
     """Manages the workflow state machine and checkpoint persistence."""
 
@@ -38,7 +57,7 @@ class WorkflowManager:
         self._module_defs: list[ModuleDef] = build_module_definitions()
         self._skills_manifest = _load_skills_manifest(config.project_root)
 
-    # ── manifest path helpers ─────────────────────────────────────────────
+    # manifest path helpers
 
     @property
     def manifest_path(self) -> Path:
@@ -48,7 +67,7 @@ class WorkflowManager:
     def config_path(self) -> Path:
         return self.run_root / "run_config.json"
 
-    # ── init ──────────────────────────────────────────────────────────────
+    # init
 
     def init_run(self) -> RunManifest:
         """Create run_root, write run_config.json, and return a fresh RunManifest."""
@@ -137,7 +156,7 @@ class WorkflowManager:
         self._write_manifest(manifest)
         return manifest
 
-    # ── checkpoint persistence ────────────────────────────────────────────
+    # checkpoint persistence
 
     def load_manifest(self) -> RunManifest | None:
         """Load an existing run_manifest.json. Returns None if absent."""
@@ -183,7 +202,7 @@ class WorkflowManager:
             encoding="utf-8",
         )
 
-    # ── state queries ─────────────────────────────────────────────────────
+    # state queries
 
     def find_resume_point(self, manifest: RunManifest) -> ModuleDef | None:
         """Return the first module that is PENDING, FAIL, or needs WARN review.
@@ -214,7 +233,7 @@ class WorkflowManager:
         Returns (ready, reason).
         """
         for rel_path_template in module_def.required_input_manifests:
-            path = Path(self.run_root) / rel_path_template
+            path = _resolve_run_dependency(self.run_root, rel_path_template)
             if not path.is_file():
                 return False, f"Required manifest missing: {path}"
 
@@ -225,7 +244,7 @@ class WorkflowManager:
                 ligand_template_sdf=self.config.ligand_template_sdf,
                 protonation_decision_json=self.config.protonation_decision_json,
             )
-            path = Path(self.run_root) / path_str
+            path = _resolve_run_dependency(self.run_root, path_str)
             if not path.is_file():
                 return False, f"Required input file missing: {path}"
 

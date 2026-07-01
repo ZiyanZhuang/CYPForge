@@ -19,7 +19,7 @@ project_root
 ## Required Files
 
 ```text
-<PROJECT_ROOT>/scripts/complex_global_audit.py
+<PROJECT_ROOT>/src/cypforge_core/cli.py
 <LIGAND_MAPPING_MANIFEST_JSON>
 <PROTONATION_MANIFEST_JSON>
 <SOLVATION_MANIFEST_JSON>
@@ -30,10 +30,7 @@ project_root
 ## Command
 
 ```powershell
-cd "<PROJECT_ROOT>"
-$env:PYTHONPATH="<PROJECT_ROOT>\src"
-
-python scripts\complex_global_audit.py `
+cypforge module global-audit `
   --ligand-mapping-manifest-json "<LIGAND_MAPPING_MANIFEST_JSON>" `
   --protonation-manifest-json "<PROTONATION_MANIFEST_JSON>" `
   --solvation-manifest-json "<SOLVATION_MANIFEST_JSON>" `

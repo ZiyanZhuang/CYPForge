@@ -491,7 +491,7 @@ def analyze_protonation_state(
         "residues": residues_analysis,
         "expected_dry_charge_delta": decision_data.get("expected_dry_charge_change") if decision_data else None,
         "policy": (
-            "Analysis only — no PDB files, LEaP inputs, or parameter files were modified. "
+            "Analysis only - no PDB files, LEaP inputs, or parameter files were modified. "
             "To apply the proposed changes, re-run without --analyze-only and provide a "
             "protonation decision JSON with 'auto-apply' intent."
         ),

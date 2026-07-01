@@ -21,8 +21,7 @@ project_root
 ## Required Files
 
 ```text
-<PROJECT_ROOT>/scripts/complex_solvation_ionization.py
-<PROJECT_ROOT>/scripts/validate_solvation_tleap.py
+<PROJECT_ROOT>/src/cypforge_core/cli.py
 <PROTONATION_MANIFEST_JSON>
 ```
 
@@ -31,10 +30,7 @@ project_root
 Render the LEaP input:
 
 ```powershell
-cd "<PROJECT_ROOT>"
-$env:PYTHONPATH="<PROJECT_ROOT>\src"
-
-python scripts\complex_solvation_ionization.py `
+cypforge module solvate render `
   --protonation-manifest-json "<PROTONATION_MANIFEST_JSON>" `
   --output-dir "<RUN_ROOT>\15_complex_solvation_ionization" `
   --protein-force-field ff19SB `
@@ -51,8 +47,7 @@ Execute and validate LEaP:
 cd "<RUN_ROOT>\15_complex_solvation_ionization"
 wsl -e bash -lc "source <AMBER_SETUP_SCRIPT> && cd '<RUN_ROOT_WSL>/15_complex_solvation_ionization' && tleap -f complex_solvation_ionization_leap.in > leap.log 2>&1"
 
-cd "<PROJECT_ROOT>"
-python scripts\validate_solvation_tleap.py `
+cypforge module solvate validate `
   --solvation-manifest-json "<RUN_ROOT>\15_complex_solvation_ionization\solvation_manifest.json"
 ```
 

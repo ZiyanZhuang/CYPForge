@@ -1,4 +1,4 @@
-"""ModuleRunner — execute StepDef commands via subprocess with full logging."""
+"""ModuleRunner - execute StepDef commands via subprocess with full logging."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def _format_cmd(template: str, values: dict[str, Any], kind: str = "python_scrip
     result = template
     blank_ligand_chain = "ligand_chain" in values and not str(values.get("ligand_chain") or "").strip()
     if blank_ligand_chain:
-        # count=1 — every current template contains the --ligand-chain
+        # count=1 - every current template contains the --ligand-chain
         # {ligand_chain} pair at most once. Capping the substitution prevents
         # a future template with two pairs from producing two
         # --blank-ligand-chain flags (which argparse would treat as a duplicate
@@ -242,6 +242,8 @@ class ModuleRunner:
         parts = self._parse_command(command)
         if parts and parts[0] == "python":
             parts[0] = sys.executable
+        elif parts and parts[0] == "cypforge":
+            parts = [sys.executable, "-m", "cypforge_core.cli", *parts[1:]]
         timeout = step.timeout_seconds
 
         try:

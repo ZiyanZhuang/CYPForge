@@ -20,18 +20,14 @@ project_root
 ## Required Files
 
 ```text
-<PROJECT_ROOT>/scripts/heme_only.py
-<PROJECT_ROOT>/scripts/heme_mapping_leapin.py
+<PROJECT_ROOT>/src/cypforge_core/cli.py
 <RAW_PROTEIN_HEME_PDB>
 ```
 
 ## Commands
 
 ```powershell
-cd "<PROJECT_ROOT>"
-$env:PYTHONPATH="<PROJECT_ROOT>\src"
-
-python scripts\heme_only.py `
+cypforge module heme prepare `
   --heme-state <IC6|DIOXY|CPDI> `
   --output-dir "<RUN_ROOT>\01_heme_only" `
   --heme-resname <HEME_RESNAME> `
@@ -40,7 +36,7 @@ python scripts\heme_only.py `
   --axial-cys-resid <AXIAL_CYS_CURRENT_RESID> `
   "<RAW_PROTEIN_HEME_PDB>"
 
-python scripts\heme_mapping_leapin.py `
+cypforge module heme leap `
   --prepared-pdb "<RUN_ROOT>\01_heme_only\prepared.pdb" `
   --prepare-report-json "<RUN_ROOT>\01_heme_only\prepare_report.json" `
   --output-dir "<RUN_ROOT>\02_heme_mapping_leapin" `
@@ -50,7 +46,7 @@ python scripts\heme_mapping_leapin.py `
 Dangerous optional transmembrane helix trimming before Core 1:
 
 ```powershell
-python scripts\heme_only.py `
+cypforge module heme prepare `
   --heme-state <IC6|DIOXY|CPDI> `
   --output-dir "<RUN_ROOT>\01_heme_only" `
   --heme-resname <HEME_RESNAME> `

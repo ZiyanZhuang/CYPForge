@@ -35,6 +35,7 @@ from cypforge_core.orchestrator import (
     CYPForgeOrchestrator,
 )
 from cypforge_core.orchestrator.models import ModuleRecord
+import cypforge_core.orchestrator.runner as runner_module
 from cypforge_core.orchestrator.runner import ModuleRunner, _format_cmd
 from cypforge_core.complex_pre_md_equilibration import validate_complex_pre_md_run
 from cypforge_core.complex_pre_md_equilibration import _fatal_keyword_count, _render_run_script
@@ -45,7 +46,7 @@ FAKE_PROJECT_ROOT = str(Path("/tmp/cypforge_proj"))
 FAKE_RUN_ROOT = str(Path("/tmp/cypforge_run"))
 
 
-# ── models ───────────────────────────────────────────────────────────────────
+# -- models -------------------------------------------------------------------
 
 def test_build_module_definitions_count():
     modules = build_module_definitions()
@@ -132,7 +133,7 @@ def test_input_dependency_chain_is_consistent():
             all_outputs.add(out)
 
 
-# ── RunConfig ────────────────────────────────────────────────────────────────
+# -- RunConfig ----------------------------------------------------------------
 
 def test_run_config_defaults():
     cfg = RunConfig(
@@ -159,7 +160,7 @@ def test_run_config_python_path():
 
 def test_format_cmd_blank_ligand_chain_uses_explicit_flag():
     command = _format_cmd(
-        "python scripts/ligand_mapping_leapin.py"
+        "cypforge module ligand leap"
         " --ligand-resname {ligand_resname}"
         " --ligand-chain {ligand_chain}"
         " --heme-chain {heme_chain}",
@@ -170,6 +171,57 @@ def test_format_cmd_blank_ligand_chain_uses_explicit_flag():
     assert "--blank-ligand-chain" in command
     assert "--ligand-chain" not in command
     assert "--heme-chain" not in command
+
+
+def test_module_cli_parses_core_entrypoint():
+    parser = _build_parser()
+    args = parser.parse_args([
+        "module", "pre-md", "render",
+        "--solvation-manifest-json", "solvation_manifest.json",
+        "--output-dir", "17_complex_pre_md_equilibration",
+        "--stages", "1-8",
+    ])
+    assert args.command == "module"
+    assert args.module_command == "pre-md"
+    assert args.pre_md_command == "render"
+    assert args.stages == "1-8"
+
+
+def test_runner_executes_cypforge_entrypoint_via_current_python(tmp_path, monkeypatch):
+    project_root = tmp_path / "project"
+    (project_root / "src" / "cypforge_core").mkdir(parents=True)
+    config = RunConfig(run_name="entrypoint", run_root=str(tmp_path / "run"), project_root=str(project_root))
+    captured: dict[str, object] = {}
+
+    class Completed:
+        returncode = 0
+        stdout = "ok\n"
+        stderr = ""
+
+    def fake_run(parts, **kwargs):
+        captured["parts"] = parts
+        captured["kwargs"] = kwargs
+        return Completed()
+
+    monkeypatch.setattr(runner_module.subprocess, "run", fake_run)
+    record = StepRecord(name="module_help")
+    step = StepDef(
+        name="module_help",
+        kind="python_script",
+        command_template="cypforge module pre-md render --help",
+    )
+
+    result = ModuleRunner(config)._run_python(
+        "cypforge module pre-md render --help",
+        record,
+        tmp_path / "stdout.txt",
+        tmp_path / "stderr.txt",
+        step,
+    )
+
+    assert result.status == "PASS"
+    assert captured["parts"][:3] == [runner_module.sys.executable, "-m", "cypforge_core.cli"]
+    assert captured["parts"][3:] == ["module", "pre-md", "render", "--help"]
 
 
 def test_cypforge_run_init_blank_ligand_chain_persists(tmp_path):
@@ -228,6 +280,29 @@ def test_workflow_persists_supplied_parameter_route(tmp_path):
     assert loaded is not None
     assert loaded.supplied_ligand_mol2 == "reviewed.mol2"
     assert loaded.supplied_ligand_frcmod == "reviewed.frcmod"
+
+
+def test_workflow_required_input_file_accepts_absolute_config_path(tmp_path):
+    run_root = tmp_path / "run"
+    source = tmp_path / "inputs" / "complex.pdb"
+    source.parent.mkdir()
+    source.write_text("END\n", encoding="utf-8")
+    module = ModuleDef(
+        skill_id="cypforge.test",
+        skill_file="test.md",
+        description="test absolute dependency",
+        required_input_files=["{raw_protein_heme_pdb}"],
+    )
+    manager = WorkflowManager(
+        RunConfig(
+            run_name="absolute",
+            run_root=str(run_root),
+            project_root=FAKE_PROJECT_ROOT,
+            raw_protein_heme_pdb=str(source),
+        )
+    )
+    ready, reason = manager.is_module_ready(module, RunManifest())
+    assert ready, reason
 
 
 def test_init_basic_parser_keeps_advanced_arguments_compatible():
@@ -406,6 +481,8 @@ def test_core2_command_renders_supplied_parameters_only_when_configured():
     step = get_module_by_skill_id("cypforge.core2_prepare_ligand_resp_gaff2").steps[0]
     base = RunConfig(run_name="base", run_root=FAKE_RUN_ROOT, project_root=FAKE_PROJECT_ROOT)
     base_command = _format_cmd(step.command_template, ModuleRunner(base)._resolve_values())
+    assert f'--complex-pdb "{FAKE_RUN_ROOT}/01_heme_only/prepared_heme_complex.pdb"' in base_command
+    assert "--complex-pdb {raw_protein_heme_pdb}" not in step.command_template
     assert "--supplied-mol2" not in base_command
     assert "--supplied-frcmod" not in base_command
 
@@ -433,7 +510,7 @@ def test_core1_command_preserves_paths_and_trim_ranges_with_spaces():
     )
     command = _format_cmd(step.command_template, ModuleRunner(config)._resolve_values())
     argv = ModuleRunner._parse_command(command)
-    assert argv[argv.index("--output-dir") + 1] == "C:/runs with space/trim\\01_heme_only"
+    assert argv[argv.index("--output-dir") + 1] == "C:/runs with space/trim/01_heme_only"
     assert argv[argv.index("--trim-transmembrane-range") + 1] == "A:1-35, B:40-50"
     assert "--confirm-transmembrane-trim" in argv
     assert argv[-1] == "C:/inputs with space/complex.pdb"
@@ -744,7 +821,30 @@ def test_prep_only_pauses_before_protonation_without_decision(tmp_path, monkeypa
     assert "cypforge.core3_finalize_protonation" not in executed
 
 
-# ── WorkflowManager ──────────────────────────────────────────────────────────
+# -- WorkflowManager ----------------------------------------------------------
+
+
+def test_execute_module_fails_when_declared_output_manifest_missing(tmp_path):
+    project_root = tmp_path / "project"
+    (project_root / "src" / "cypforge_core").mkdir(parents=True)
+    run_root = tmp_path / "run"
+    config = RunConfig(run_name="missing_manifest", run_root=str(run_root), project_root=str(project_root))
+    orch = CYPForgeOrchestrator(config)
+    manifest = orch.init()
+    module = ModuleDef(
+        skill_id="cypforge.synthetic_missing_manifest",
+        skill_file="synthetic.md",
+        description="synthetic module with missing manifest",
+        steps=[StepDef(name="import_ok", kind="python_script", command_template='python -c "print(1)"')],
+        output_manifests=["synthetic/output.json"],
+        output_dir_rel="synthetic",
+    )
+
+    record = orch._execute_module(module, manifest)
+
+    assert record.status == "FAIL"
+    assert record.gate_result == "FAIL"
+    assert "No output manifests found" in " ".join(record.errors)
 
 def test_workflow_init_creates_manifest(tmp_path):
     run_root = tmp_path / "test_run"
@@ -883,7 +983,7 @@ def test_find_resume_point_warn_auto_accept(tmp_path):
     assert resume.skill_id == "cypforge.core1_prepare_heme_cym"
 
 
-# ── GateChecker ──────────────────────────────────────────────────────────────
+# -- GateChecker --------------------------------------------------------------
 
 def test_gate_checker_extract_status_pass(tmp_path):
     checker = GateChecker(str(tmp_path))
@@ -908,7 +1008,7 @@ def test_gate_checker_extract_status_warn(tmp_path):
 
 def test_gate_checker_combine_gates(tmp_path):
     checker = GateChecker(str(tmp_path))
-    # Empty gate list = misconfiguration → fail closed (see gates.py:_combine).
+    # Empty gate list = misconfiguration -> fail closed (see gates.py:_combine).
     assert checker._combine([]) == "FAIL"
     assert checker._combine([
         GateResult(gate_id="1", name="a", status="PASS", detail=""),
@@ -975,7 +1075,7 @@ def test_gate_checker_global_audit_sub_gates(tmp_path):
     assert status == "WARN"
 
 
-# ── context building ─────────────────────────────────────────────────────────
+# -- context building ---------------------------------------------------------
 
 def test_build_agent_context_empty():
     manifest = {
@@ -1058,7 +1158,7 @@ def test_build_agent_context_includes_policy_reminders():
     assert any("do not run production md" in r.lower() for r in reminders)
 
 
-# ── StepRecord / ModuleRecord ────────────────────────────────────────────────
+# -- StepRecord / ModuleRecord ------------------------------------------------
 
 def test_step_record_defaults():
     sr = StepRecord(name="test_step")
@@ -1150,6 +1250,43 @@ def test_validate_complex_pre_md_run_accepts_utf8_bom_manifest(tmp_path):
 
     result = validate_complex_pre_md_run(pre_md_manifest_json=manifest)
     assert result["status"] == "success"
+
+
+def test_validate_complex_pre_md_run_respects_active_stages_subset(tmp_path):
+    pre_md = tmp_path / "pre_md"
+    run = pre_md / "run"
+    run.mkdir(parents=True)
+    manifest = pre_md / "complex_pre_md_equilibration_manifest.json"
+    manifest.write_text(
+        json.dumps({
+            "output_files": {"manifest_json": str(manifest), "run_dir": str(run)},
+            "stages_range": "9",
+            "stages": [
+                {"index": 8, "id": "08_npt_soft_release", "trajectory": "08_npt_soft_release.nc"},
+                {"index": 9, "id": "09_npt_free_equilibration", "trajectory": "09_npt_free_equilibration.nc"},
+            ],
+            "active_stages": [
+                {"index": 9, "id": "09_npt_free_equilibration", "trajectory": "09_npt_free_equilibration.nc"},
+            ],
+        }),
+        encoding="utf-8",
+    )
+    (run / "run_pre_md.started_at.txt").write_text("start\n", encoding="utf-8")
+    (run / "run_pre_md.finished_at.txt").write_text("finish\n", encoding="utf-8")
+    (run / "run_pre_md.exit_code.txt").write_text("0\n", encoding="utf-8")
+    (run / "stage_status.tsv").write_text(
+        "stage\tmdout\trestart\texit_code\tnormal_end\n"
+        "09_npt_free_equilibration\trun/09_npt_free_equilibration.out\t09_npt_free_equilibration.rst7\t0\t1\n",
+        encoding="utf-8",
+    )
+    (run / "09_npt_free_equilibration.out").write_text("Final Performance Info\n", encoding="utf-8")
+    (pre_md / "09_npt_free_equilibration.rst7").write_text("rst\n", encoding="utf-8")
+    (run / "09_npt_free_equilibration.nc").write_text("nc\n", encoding="utf-8")
+
+    result = validate_complex_pre_md_run(pre_md_manifest_json=manifest)
+
+    assert result["status"] == "success"
+    assert [stage["name"] for stage in result["stages"]] == ["09_npt_free_equilibration"]
 
 
 def test_pre_md_validator_ignores_benign_error_word_and_script_stops_on_missing_normal_end(tmp_path):

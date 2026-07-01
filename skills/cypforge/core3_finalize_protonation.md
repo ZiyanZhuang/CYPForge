@@ -17,7 +17,7 @@ project_root
 ## Required Files
 
 ```text
-<PROJECT_ROOT>/scripts/complex_protonation_finalize.py
+<PROJECT_ROOT>/src/cypforge_core/cli.py
 <LIGAND_MAPPING_MANIFEST_JSON>
 <ORIGINAL_PREPARED_COMPLEX_PDB>
 <PROTONATION_DECISION_JSON>
@@ -54,13 +54,10 @@ Selectors and recommendation output use the chain and residue number from the
 original prepared PDB. The decision JSON also records the corresponding
 assembled LEaP residue index.
 
-The low-level compatibility command remains:
+The low-level module command is:
 
 ```powershell
-cd "<PROJECT_ROOT>"
-$env:PYTHONPATH="<PROJECT_ROOT>\src"
-
-python scripts\complex_protonation_finalize.py `
+cypforge module protonation finalize `
   --ligand-mapping-manifest-json "<LIGAND_MAPPING_MANIFEST_JSON>" `
   --original-prepared-pdb "<ORIGINAL_PREPARED_COMPLEX_PDB>" `
   --protonation-decision-json "<PROTONATION_DECISION_JSON>" `

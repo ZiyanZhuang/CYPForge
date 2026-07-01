@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import Any
 
 
-# ── status constants ────────────────────────────────────────────────────────
+# status constants
 
 MODULE_STATUS = ("PENDING", "RUNNING", "PASS", "WARN", "FAIL", "SKIPPED")
 WORKFLOW_STATUS = ("INITIALIZING", "RUNNING", "PAUSED", "STOPPED_ON_FAIL", "COMPLETED", "ERROR")
 
-# ── RunConfig ───────────────────────────────────────────────────────────────
+# RunConfig
 
 @dataclass
 class RunConfig:
@@ -55,7 +55,7 @@ class RunConfig:
     buffer_a: float = 10.0
     neutralizing_anion: str = "Cl-"
 
-    # WSL / Amber (wsl_user empty → use the default WSL user; required for WSL steps)
+    # WSL / Amber (wsl_user empty -> use the default WSL user; required for WSL steps)
     wsl_user: str = ""
     amber_sh: str = ""
     multiwfn_bin: str = ""
@@ -71,7 +71,7 @@ class RunConfig:
         return str(Path(self.project_root) / "src")
 
 
-# ── StepDef ─────────────────────────────────────────────────────────────────
+# StepDef
 
 @dataclass
 class StepDef:
@@ -83,7 +83,7 @@ class StepDef:
     timeout_seconds: int | None = None  # None = no explicit timeout
 
 
-# ── ModuleDef ───────────────────────────────────────────────────────────────
+# ModuleDef
 
 @dataclass
 class ModuleDef:
@@ -98,7 +98,7 @@ class ModuleDef:
     index: int = 0
 
 
-# ── StepRecord ──────────────────────────────────────────────────────────────
+# StepRecord
 
 @dataclass
 class StepRecord:
@@ -115,7 +115,7 @@ class StepRecord:
     error_message: str = ""
 
 
-# ── ModuleRecord ────────────────────────────────────────────────────────────
+# ModuleRecord
 
 @dataclass
 class ModuleRecord:
@@ -133,7 +133,7 @@ class ModuleRecord:
     completed_at: str = ""
 
 
-# ── GateResult ──────────────────────────────────────────────────────────────
+# GateResult
 
 @dataclass
 class GateResult:
@@ -144,7 +144,7 @@ class GateResult:
     evidence_file: str = ""
 
 
-# ── RunManifest ─────────────────────────────────────────────────────────────
+# RunManifest
 
 @dataclass
 class RunManifest:
@@ -161,18 +161,14 @@ class RunManifest:
     completed_at: str = ""
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 #  Workflow output-directory constants
-# ══════════════════════════════════════════════════════════════════════════════
 
 # Run-root-relative path where the global CYP450 audit writes its manifest.
 # Cross-referenced from gates.py to keep the audit truth-source consistent.
 AUDIT_DIR_REL = "18_global_cyp450_audit"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 #  Workflow module definitions  (10 stages)
-# ══════════════════════════════════════════════════════════════════════════════
 
 def build_module_definitions() -> list[ModuleDef]:
     """Return the ordered list of 10 workflow module definitions.
@@ -247,9 +243,9 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Prepare protein + heme/CYP coordinates",
                     command_template=(
-                        "python scripts/heme_only.py"
+                        "cypforge module heme prepare"
                         " --heme-state {heme_state}"
-                        ' --output-dir "{run_root}\\01_heme_only"'
+                        ' --output-dir "{run_root}/01_heme_only"'
                         " --heme-resname {heme_resname}"
                         " --heme-chain {heme_chain}"
                         " --protein-chain {protein_chain}"
@@ -265,10 +261,10 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Build heme/CYM LEaP mapping input",
                     command_template=(
-                        "python scripts/heme_mapping_leapin.py"
-                        ' --prepared-pdb "{run_root}\\01_heme_only\\prepared_heme_complex.pdb"'
-                        ' --prepare-report-json "{run_root}\\01_heme_only\\prepare_report.json"'
-                        ' --output-dir "{run_root}\\02_heme_mapping_leapin"'
+                        "cypforge module heme leap"
+                        ' --prepared-pdb "{run_root}/01_heme_only/prepared_heme_complex.pdb"'
+                        ' --prepare-report-json "{run_root}/01_heme_only/prepare_report.json"'
+                        ' --output-dir "{run_root}/02_heme_mapping_leapin"'
                         " --heme-resname {heme_resname}"
                     ),
                     timeout_seconds=60,
@@ -294,8 +290,8 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Run GPU4PySCF/Multiwfn RESP charge fitting",
                     command_template=(
-                        "python scripts/ligand_gpu4pyscf_esp.py"
-                        ' --complex-pdb "{raw_protein_heme_pdb}"'
+                        "cypforge module ligand prepare"
+                        ' --complex-pdb "{run_root}/01_heme_only/prepared_heme_complex.pdb"'
                         ' --ligand-template-sdf "{ligand_template_sdf}"'
                         ' --supplied-mol2 "{supplied_ligand_mol2}"'
                         ' --supplied-frcmod "{supplied_ligand_frcmod}"'
@@ -307,7 +303,7 @@ def build_module_definitions() -> list[ModuleDef]:
                         " --points-per-atom {points_per_atom}"
                         " --fit-method {fit_method}"
                         " --pre-resp-relax {pre_resp_relax}"
-                        ' --output-dir "{run_root}\\10_ligand_gpu4pyscf_esp"'
+                        ' --output-dir "{run_root}/10_ligand_gpu4pyscf_esp"'
                     ),
                     timeout_seconds=14400,
                 ),
@@ -316,15 +312,15 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Build ligand-aware LEaP mapping input",
                     command_template=(
-                        "python scripts/ligand_mapping_leapin.py"
-                        ' --complex-pdb "{raw_protein_heme_pdb}"'
-                        ' --prepare-report-json "{run_root}\\01_heme_only\\prepare_report.json"'
-                        ' --ligand-mol2 "{run_root}\\10_ligand_gpu4pyscf_esp\\{ligand_resname}_multiwfn_resp.mol2"'
-                        ' --ligand-frcmod "{run_root}\\10_ligand_gpu4pyscf_esp\\{ligand_resname}.frcmod"'
+                        "cypforge module ligand leap"
+                        ' --complex-pdb "{run_root}/01_heme_only/prepared_heme_complex.pdb"'
+                        ' --prepare-report-json "{run_root}/01_heme_only/prepare_report.json"'
+                        ' --ligand-mol2 "{run_root}/10_ligand_gpu4pyscf_esp/{ligand_resname}_multiwfn_resp.mol2"'
+                        ' --ligand-frcmod "{run_root}/10_ligand_gpu4pyscf_esp/{ligand_resname}.frcmod"'
                         " --ligand-resname {ligand_resname}"
                         " --ligand-chain {ligand_chain}"
                         " --expected-ligand-charge {formal_charge}"
-                        ' --output-dir "{run_root}\\13_ligand_mapping_leapin"'
+                        ' --output-dir "{run_root}/13_ligand_mapping_leapin"'
                         " --heme-resname {heme_resname}"
                     ),
                     timeout_seconds=60,
@@ -353,11 +349,11 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Finalize protonation states with explicit decisions",
                     command_template=(
-                        "python scripts/complex_protonation_finalize.py"
-                        ' --ligand-mapping-manifest-json "{run_root}\\13_ligand_mapping_leapin\\ligand_mapping_leapin_manifest.json"'
-                        ' --original-prepared-pdb "{run_root}\\01_heme_only\\prepared_heme_complex.pdb"'
+                        "cypforge module protonation finalize"
+                        ' --ligand-mapping-manifest-json "{run_root}/13_ligand_mapping_leapin/ligand_mapping_leapin_manifest.json"'
+                        ' --original-prepared-pdb "{run_root}/01_heme_only/prepared_heme_complex.pdb"'
                         ' --protonation-decision-json "{protonation_decision_json}"'
-                        ' --output-dir "{run_root}\\14_complex_protonation_finalize"'
+                        ' --output-dir "{run_root}/14_complex_protonation_finalize"'
                     ),
                     timeout_seconds=120,
                 ),
@@ -379,9 +375,9 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Render solvation and neutralization LEaP input",
                     command_template=(
-                        "python scripts/complex_solvation_ionization.py"
-                        ' --protonation-manifest-json "{run_root}\\14_complex_protonation_finalize\\protonation_finalize_manifest.json"'
-                        ' --output-dir "{run_root}\\15_complex_solvation_ionization"'
+                        "cypforge module solvate render"
+                        ' --protonation-manifest-json "{run_root}/14_complex_protonation_finalize/protonation_finalize_manifest.json"'
+                        ' --output-dir "{run_root}/15_complex_solvation_ionization"'
                         " --protein-force-field {protein_force_field}"
                         " --water-leaprc {water_leaprc}"
                         " --water-model {water_model}"
@@ -406,8 +402,8 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Validate solvated topology, coordinates, PDB, charge, and ion count",
                     command_template=(
-                        "python scripts/validate_solvation_tleap.py"
-                        ' --solvation-manifest-json "{run_root}\\15_complex_solvation_ionization\\solvation_manifest.json"'
+                        "cypforge module solvate validate"
+                        ' --solvation-manifest-json "{run_root}/15_complex_solvation_ionization/solvation_manifest.json"'
                     ),
                     timeout_seconds=60,
                 ),
@@ -432,9 +428,9 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Generate mdin files and run script for 9-stage pre-MD",
                     command_template=(
-                        "python scripts/complex_pre_md_equilibration.py"
-                        ' --solvation-manifest-json "{run_root}\\15_complex_solvation_ionization\\solvation_manifest.json"'
-                        ' --output-dir "{run_root}\\17_complex_pre_md_equilibration"'
+                        "cypforge module pre-md render"
+                        ' --solvation-manifest-json "{run_root}/15_complex_solvation_ionization/solvation_manifest.json"'
+                        ' --output-dir "{run_root}/17_complex_pre_md_equilibration"'
                     ),
                     timeout_seconds=120,
                 ),
@@ -465,8 +461,8 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Validate pre-MD stage completion markers and generated restarts/trajectories",
                     command_template=(
-                        "python scripts/validate_complex_pre_md_run.py"
-                        ' --pre-md-manifest-json "{run_root}\\17_complex_pre_md_equilibration\\complex_pre_md_equilibration_manifest.json"'
+                        "cypforge module pre-md validate"
+                        ' --pre-md-manifest-json "{run_root}/17_complex_pre_md_equilibration/complex_pre_md_equilibration_manifest.json"'
                     ),
                     timeout_seconds=60,
                 ),
@@ -490,13 +486,13 @@ def build_module_definitions() -> list[ModuleDef]:
                     kind="python_script",
                     description="Run all 9 audit gates on the completed pre-MD run",
                     command_template=(
-                        "python scripts/complex_global_audit.py"
-                        ' --ligand-mapping-manifest-json "{run_root}\\13_ligand_mapping_leapin\\ligand_mapping_leapin_manifest.json"'
-                        ' --protonation-manifest-json "{run_root}\\14_complex_protonation_finalize\\protonation_finalize_manifest.json"'
-                        ' --solvation-manifest-json "{run_root}\\15_complex_solvation_ionization\\solvation_manifest.json"'
-                        ' --pre-md-manifest-json "{run_root}\\17_complex_pre_md_equilibration\\complex_pre_md_equilibration_manifest.json"'
-                        ' --pre-md-run-validation-json "{run_root}\\17_complex_pre_md_equilibration\\complex_pre_md_equilibration_run_validation.json"'
-                        f' --output-dir "{{run_root}}\\{AUDIT_DIR_REL}"'
+                        "cypforge module global-audit"
+                        ' --ligand-mapping-manifest-json "{run_root}/13_ligand_mapping_leapin/ligand_mapping_leapin_manifest.json"'
+                        ' --protonation-manifest-json "{run_root}/14_complex_protonation_finalize/protonation_finalize_manifest.json"'
+                        ' --solvation-manifest-json "{run_root}/15_complex_solvation_ionization/solvation_manifest.json"'
+                        ' --pre-md-manifest-json "{run_root}/17_complex_pre_md_equilibration/complex_pre_md_equilibration_manifest.json"'
+                        ' --pre-md-run-validation-json "{run_root}/17_complex_pre_md_equilibration/complex_pre_md_equilibration_run_validation.json"'
+                        f' --output-dir "{{run_root}}/{AUDIT_DIR_REL}"'
                     ),
                     timeout_seconds=300,
                 ),

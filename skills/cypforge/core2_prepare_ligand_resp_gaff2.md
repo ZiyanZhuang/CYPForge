@@ -28,8 +28,7 @@ project_root
 ## Required Files
 
 ```text
-<PROJECT_ROOT>/scripts/ligand_gpu4pyscf_esp.py
-<PROJECT_ROOT>/scripts/ligand_mapping_leapin.py
+<PROJECT_ROOT>/src/cypforge_core/cli.py
 <COMPLEX_PDB>
 <LIGAND_TEMPLATE_SDF>
 <PREPARE_REPORT_JSON>
@@ -40,7 +39,7 @@ project_root
 Supplied-parameter path; this validates the files and does not run QM/ESP/RESP:
 
 ```powershell
-python scripts\ligand_gpu4pyscf_esp.py `
+cypforge module ligand prepare `
   --complex-pdb "<COMPLEX_PDB>" `
   --ligand-template-sdf "<LIGAND_TEMPLATE_SDF>" `
   --ligand-resname <LIGAND_RESNAME> `
@@ -57,10 +56,7 @@ with unrelated coordinates is rejected.
 New-charge path with H-only pre-RESP cleanup:
 
 ```powershell
-cd "<PROJECT_ROOT>"
-$env:PYTHONPATH="<PROJECT_ROOT>\src"
-
-python scripts\ligand_gpu4pyscf_esp.py `
+cypforge module ligand prepare `
   --complex-pdb "<COMPLEX_PDB>" `
   --ligand-template-sdf "<LIGAND_TEMPLATE_SDF>" `
   --ligand-resname <LIGAND_RESNAME> `
@@ -77,7 +73,7 @@ python scripts\ligand_gpu4pyscf_esp.py `
 Generate ligand-aware LEaP mapping:
 
 ```powershell
-python scripts\ligand_mapping_leapin.py `
+cypforge module ligand leap `
   --complex-pdb "<COMPLEX_PDB>" `
   --prepare-report-json "<PREPARE_REPORT_JSON>" `
   --ligand-mol2 "<LIGAND_RESP_GAFF2_MOL2>" `

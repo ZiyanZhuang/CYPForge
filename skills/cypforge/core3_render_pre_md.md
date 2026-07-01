@@ -16,7 +16,7 @@ project_root
 ## Required Files
 
 ```text
-<PROJECT_ROOT>/scripts/complex_pre_md_equilibration.py
+<PROJECT_ROOT>/src/cypforge_core/cli.py
 <SOLVATION_MANIFEST_JSON>
 ```
 
@@ -25,10 +25,7 @@ project_root
 Default render:
 
 ```powershell
-cd "<PROJECT_ROOT>"
-$env:PYTHONPATH="<PROJECT_ROOT>\src"
-
-python scripts\complex_pre_md_equilibration.py `
+cypforge module pre-md render `
   --solvation-manifest-json "<SOLVATION_MANIFEST_JSON>" `
   --output-dir "<RUN_ROOT>\17_complex_pre_md_equilibration"
 ```
@@ -36,7 +33,7 @@ python scripts\complex_pre_md_equilibration.py `
 Render from user-edited config:
 
 ```powershell
-python scripts\complex_pre_md_equilibration.py `
+cypforge module pre-md render `
   --solvation-manifest-json "<SOLVATION_MANIFEST_JSON>" `
   --protocol-config-json "<RUN_ROOT>\17_complex_pre_md_equilibration\pre_md_protocol_config.json" `
   --output-dir "<RUN_ROOT>\17_complex_pre_md_equilibration" `

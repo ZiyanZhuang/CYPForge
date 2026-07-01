@@ -1,4 +1,4 @@
-"""Context builder — aggregate JSON reports for LLM agent decision-making."""
+"""Context builder - aggregate JSON reports for LLM agent decision-making."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 
-# Non-negotiable scientific rules from SKILL.md — surfaced as policy reminders
+# Non-negotiable scientific rules from SKILL.md - surfaced as policy reminders
 POLICY_REMINDERS = [
     "SDF is the ligand chemistry source: graph, bond order, aromaticity, formal charge, GAFF2 typing.",
     "PDB is the protein/HEME/ligand pose source: coordinates, residue names, atom names, chain identifiers.",

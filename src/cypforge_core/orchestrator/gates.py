@@ -1,4 +1,4 @@
-"""GateChecker — read JSON manifests, evaluate PASS/WARN/FAIL, enforce stop conditions."""
+"""GateChecker - read JSON manifests, evaluate PASS/WARN/FAIL, enforce stop conditions."""
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ class GateChecker:
         for idx, entry in enumerate(conditions, start=1):
             if isinstance(entry, dict):
                 if "condition" not in entry:
-                    # Malformed manifest entry — refuse to silently pass it.
+                    # Malformed manifest entry - refuse to silently pass it.
                     result = GateResult(
                         gate_id=f"stop.{idx:02d}.malformed_entry",
                         name=f"malformed_stop_condition[{idx}]",
@@ -166,7 +166,7 @@ class GateChecker:
             if raw_lower in ("warn", "warning"):
                 return "WARN"
         # If the manifest has sub-gate results (like global_audit), combine them.
-        # Require a non-empty list — an empty gate_results paired with an
+        # Require a non-empty list - an empty gate_results paired with an
         # unrecognized top-level status would otherwise leak through as PASS
         # (e.g. {"status": 0, "gate_results": []}), which is a fail-open hole.
         sub_results = data.get("gate_results")
@@ -177,19 +177,19 @@ class GateChecker:
             if "WARN" in sub_statuses:
                 return "WARN"
             return "PASS"
-        return "FAIL"  # unrecognized status → fail closed
+        return "FAIL"  # unrecognized status -> fail closed
 
     def _summarize_manifest(
         self, skill_id: str, name: str, data: dict[str, Any]
     ) -> str:
         """Produce a one-line summary of a manifest."""
-        status = data.get("status", "?")
+        status = data.get("status", "-")
         lines = [f"status={status}"]
 
         if "gate_results" in data:
             for g in data["gate_results"]:
-                g_status = g.get("status", "?")
-                g_name = g.get("name", g.get("gate", "?"))
+                g_status = g.get("status", "-")
+                g_name = g.get("name", g.get("gate", "-"))
                 lines.append(f"{g_name}={g_status}")
 
         if "outputs" in data:
@@ -212,7 +212,7 @@ class GateChecker:
         return "PASS"
 
 
-# ── decision-making functions (modules 8 and 9) ──────────────────────────────
+# decision-making functions (modules 8 and 9)
 
 def make_equilibration_decision(run_root: str) -> None:
     """Read the global audit manifest and write equilibration_decision_state.json.
@@ -241,11 +241,11 @@ def make_equilibration_decision(run_root: str) -> None:
         if status == "FAIL" or failed_gates:
             # Determine which core to fix based on failed gate names
             decision = _map_failure_to_stop(failed_gates)
-            reason = f"Failed gates: {', '.join(g.get('name', '?') for g in failed_gates)}"
+            reason = f"Failed gates: {', '.join(g.get('name', '-') for g in failed_gates)}"
             next_action = "Fix the identified upstream module and re-run."
         elif status == "WARN" or warned_gates:
             decision = "WARN_HUMAN_REVIEW"
-            reason = f"Warning gates require review: {', '.join(g.get('name', '?') for g in warned_gates)}"
+            reason = f"Warning gates require review: {', '.join(g.get('name', '-') for g in warned_gates)}"
             next_action = "Review warnings. If acceptable, allow 1-5 ns extended equilibration."
         else:
             decision = "ALLOW_1_5_NS_FREE_EQUILIBRATION"

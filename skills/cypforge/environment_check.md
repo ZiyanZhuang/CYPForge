@@ -31,7 +31,6 @@ $OPTIONAL_TOOLS=@("reduce","propka","pdb2pqr","Multiwfn")
 ## Required Files
 
 ```text
-<PROJECT_ROOT>/scripts
 <PROJECT_ROOT>/src/cypforge_core
 ```
 

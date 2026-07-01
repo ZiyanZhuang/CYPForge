@@ -15,7 +15,7 @@ from ..heme.mapping import AtomRecord, parse_pdb_atoms, parse_pdb_heme_atoms
 def resolve_frcmod_path(frcmod_path: Optional[str] = None) -> Path:
     """
     Resolve frcmod path. Must be passed explicitly (state-specific: IC6 / CPDI / DIOXY).
-    No default fallback — the caller must select the correct state frcmod.
+    No default fallback - the caller must select the correct state frcmod.
     """
     if frcmod_path is None:
         raise ValueError(

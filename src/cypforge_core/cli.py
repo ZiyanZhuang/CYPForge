@@ -23,11 +23,28 @@ from .complex_protonation_finalize import (
     finalize_complex_protonation_mapping,
     recommend_protonation_states,
 )
+from .complex_pre_md_equilibration import prepare_complex_pre_md_equilibration, validate_complex_pre_md_run
+from .complex_solvation_ionization import prepare_complex_solvation_ionization, validate_solvation_tleap_outputs
+from .complex_global_audit import run_complex_global_audit
+from .heme_mapping_leapin import build_heme_mapping_and_leapin
+from .heme_parameterization import parameterize_protein_heme_complex
+from .ligand_mapping_leapin import build_ligand_mapping_and_leapin
+from .ligand_gpu4pyscf_esp import (
+    extract_ligand_from_complex_pdb,
+    prepare_complex_sdf_ligand_resp_inputs,
+    prepare_gpu4pyscf_esp_job,
+    prepare_gpu4pyscf_molden_job,
+    run_complex_ligand_multiwfn_resp_parameterization,
+    run_complex_sdf_ligand_multiwfn_resp_parameterization,
+    run_gpu4pyscf_esp_parameterization,
+    run_gpu4pyscf_multiwfn_resp_parameterization,
+    stage_supplied_ligand_parameters,
+)
 from .local_knowledge import LocalDocsIndex, build_run_diagnosis, load_profile, update_profile
 from .orchestrator import CYPForgeOrchestrator, RunConfig
 
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 
 def _default_runs_dir() -> str:
@@ -50,9 +67,7 @@ def _default_runs_dir() -> str:
 DEFAULT_RUNS_DIR = _default_runs_dir()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 #  Banner
-# ══════════════════════════════════════════════════════════════════════════════
 
 BANNER = f"CYPForge v{VERSION}\nCYP450 Amber MD preprocessing framework\n"
 
@@ -83,9 +98,7 @@ def _detect_project_root() -> str:
     return str(cwd)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  RunConfig field list — single source of truth for serialization
-# ══════════════════════════════════════════════════════════════════════════════
+#  RunConfig field list - single source of truth for serialization
 
 _RUN_CONFIG_SCALAR_FIELDS = [
     "run_name", "run_root", "project_root",
@@ -185,9 +198,7 @@ def _dict_to_run_config(data: dict, defaults: dict | None = None) -> RunConfig:
     )
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 #  Command implementations
-# ══════════════════════════════════════════════════════════════════════════════
 
 def cmd_init(args: argparse.Namespace) -> int:
     """Initialize a new CYPForge run."""
@@ -213,7 +224,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     supplied_mol2_path = _normalize_input_path(args.supplied_ligand_mol2)
     supplied_frcmod_path = _normalize_input_path(args.supplied_ligand_frcmod)
 
-    # ── input validation warnings ──────────────────────────────────────
+    # input validation warnings
     warnings: list[str] = []
 
     if not pdb_path:
@@ -495,6 +506,321 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_json_result(result: dict, *, success_statuses: set[str] | None = None) -> int:
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    if success_statuses is None:
+        return 0
+    return 0 if str(result.get("status", "")).lower() in success_statuses else 2
+
+
+def cmd_module_heme_prepare(args: argparse.Namespace) -> int:
+    if args.heme_state == "CUSTOM":
+        missing = [
+            opt for opt, value in (
+                ("--custom-heme-mol2", args.custom_heme_mol2),
+                ("--custom-cyp-mol2", args.custom_cyp_mol2),
+                ("--custom-frcmod", args.custom_frcmod),
+            ) if not value
+        ]
+        if missing:
+            raise ValueError(f"--heme-state CUSTOM requires: {', '.join(missing)}")
+    result = parameterize_protein_heme_complex(
+        Path(args.pdb),
+        heme_state=args.heme_state,
+        output_dir=Path(args.output_dir),
+        heme_resname=args.heme_resname,
+        heme_chain=args.heme_chain,
+        protein_chain=args.protein_chain,
+        axial_cys_resid=args.axial_cys_resid,
+        template_mol2_path=args.custom_heme_mol2,
+        cyp_mol2_path=args.custom_cyp_mol2,
+        frcmod_path=args.custom_frcmod,
+        custom_state_label=args.custom_state_label,
+        trim_transmembrane_ranges=args.trim_transmembrane_range,
+        trim_transmembrane_confirmed=args.confirm_transmembrane_trim,
+    )
+    return _print_json_result(result)
+
+
+def cmd_module_heme_leap(args: argparse.Namespace) -> int:
+    result = build_heme_mapping_and_leapin(
+        prepared_pdb=Path(args.prepared_pdb),
+        prepare_report_json=Path(args.prepare_report_json),
+        output_dir=Path(args.output_dir),
+        heme_resname=args.heme_resname,
+    )
+    return _print_json_result(result)
+
+
+def cmd_module_ligand_prepare(args: argparse.Namespace) -> int:
+    if args.blank_ligand_chain:
+        args.ligand_chain = ""
+    out = Path(args.output_dir)
+    supplied_pair = bool(args.supplied_mol2 and args.supplied_frcmod)
+    if bool(args.supplied_mol2) != bool(args.supplied_frcmod):
+        raise ValueError("--supplied-mol2 and --supplied-frcmod must be provided together.")
+    if supplied_pair and not args.complex_pdb:
+        raise ValueError("--complex-pdb is required when staging supplied parameters.")
+    if not supplied_pair and not args.ligand_pose and not args.complex_pdb:
+        raise ValueError("Provide --ligand-pose or --complex-pdb.")
+
+    try:
+        if supplied_pair:
+            if not args.ligand_template_sdf:
+                raise ValueError("--ligand-template-sdf is required when staging supplied parameters.")
+            result = stage_supplied_ligand_parameters(
+                supplied_mol2=args.supplied_mol2,
+                supplied_frcmod=args.supplied_frcmod,
+                ligand_template_sdf=args.ligand_template_sdf,
+                complex_pdb=args.complex_pdb,
+                ligand_resname=args.ligand_resname,
+                ligand_chain=args.ligand_chain,
+                formal_charge=args.formal_charge,
+                output_dir=out,
+            )
+        elif args.complex_pdb and args.ligand_template_sdf and not args.prepare_only and args.fit_method == "multiwfn-resp":
+            result = run_complex_sdf_ligand_multiwfn_resp_parameterization(
+                complex_pdb=args.complex_pdb,
+                ligand_template_sdf=args.ligand_template_sdf,
+                ligand_resname=args.ligand_resname,
+                ligand_chain=args.ligand_chain,
+                formal_charge=args.formal_charge,
+                output_dir=out,
+                spin_multiplicity=args.spin,
+                basis=args.basis,
+                use_gpu=not args.cpu_only,
+                require_gpu=args.require_gpu,
+                multiwfn_bin=args.multiwfn_bin,
+                amber_sh=args.amber_sh,
+                run_parmchk2=not args.no_parmchk2,
+                resp_geometry_cleanup=args.resp_geometry_cleanup,
+                pre_resp_relax=args.pre_resp_relax,
+            )
+        elif args.complex_pdb and not args.prepare_only and args.fit_method == "multiwfn-resp":
+            result = run_complex_ligand_multiwfn_resp_parameterization(
+                complex_pdb=args.complex_pdb,
+                ligand_resname=args.ligand_resname,
+                ligand_chain=args.ligand_chain,
+                formal_charge=args.formal_charge,
+                output_dir=out,
+                spin_multiplicity=args.spin,
+                basis=args.basis,
+                use_gpu=not args.cpu_only,
+                require_gpu=args.require_gpu,
+                multiwfn_bin=args.multiwfn_bin,
+                amber_sh=args.amber_sh,
+                run_parmchk2=not args.no_parmchk2,
+                resp_geometry_cleanup=args.resp_geometry_cleanup,
+            )
+        elif args.complex_pdb and args.ligand_template_sdf and args.prepare_only:
+            result = prepare_complex_sdf_ligand_resp_inputs(
+                complex_pdb=args.complex_pdb,
+                ligand_template_sdf=args.ligand_template_sdf,
+                ligand_resname=args.ligand_resname,
+                ligand_chain=args.ligand_chain,
+                formal_charge=args.formal_charge,
+                output_dir=out,
+                spin_multiplicity=args.spin,
+                basis=args.basis,
+                use_gpu=not args.cpu_only,
+                require_gpu=args.require_gpu,
+                amber_sh=args.amber_sh,
+                run_parmchk2=not args.no_parmchk2,
+            )
+        elif args.complex_pdb and args.prepare_only:
+            ligand_pose = str(out / f"{args.ligand_resname}_from_confirmed_complex.pdb")
+            extract_ligand_from_complex_pdb(
+                complex_pdb=args.complex_pdb,
+                ligand_resname=args.ligand_resname,
+                ligand_chain=args.ligand_chain,
+                output_pdb=ligand_pose,
+            )
+            result = prepare_gpu4pyscf_molden_job(
+                ligand_pose=ligand_pose,
+                formal_charge=args.formal_charge,
+                output_dir=out,
+                resname=args.ligand_resname,
+                spin_multiplicity=args.spin,
+                basis=args.basis,
+                use_gpu=not args.cpu_only,
+                require_gpu=args.require_gpu,
+            )
+        elif args.prepare_only:
+            if args.fit_method == "multiwfn-resp":
+                result = prepare_gpu4pyscf_molden_job(
+                    ligand_pose=args.ligand_pose,
+                    formal_charge=args.formal_charge,
+                    output_dir=out,
+                    resname=args.ligand_resname,
+                    spin_multiplicity=args.spin,
+                    basis=args.basis,
+                    use_gpu=not args.cpu_only,
+                    require_gpu=args.require_gpu,
+                )
+            else:
+                result = prepare_gpu4pyscf_esp_job(
+                    ligand_pose=args.ligand_pose,
+                    formal_charge=args.formal_charge,
+                    output_dir=out,
+                    resname=args.ligand_resname,
+                    spin_multiplicity=args.spin,
+                    basis=args.basis,
+                    points_per_atom=args.points_per_atom,
+                    use_gpu=not args.cpu_only,
+                    require_gpu=args.require_gpu,
+                )
+        elif args.fit_method == "multiwfn-resp":
+            result = run_gpu4pyscf_multiwfn_resp_parameterization(
+                ligand_pose=args.ligand_pose,
+                formal_charge=args.formal_charge,
+                output_dir=out,
+                resname=args.ligand_resname,
+                spin_multiplicity=args.spin,
+                basis=args.basis,
+                use_gpu=not args.cpu_only,
+                require_gpu=args.require_gpu,
+                multiwfn_bin=args.multiwfn_bin,
+                amber_sh=args.amber_sh,
+                run_parmchk2=not args.no_parmchk2,
+                resp_geometry_cleanup=args.resp_geometry_cleanup,
+            )
+        else:
+            result = run_gpu4pyscf_esp_parameterization(
+                ligand_pose=args.ligand_pose,
+                formal_charge=args.formal_charge,
+                output_dir=out,
+                resname=args.ligand_resname,
+                spin_multiplicity=args.spin,
+                basis=args.basis,
+                points_per_atom=args.points_per_atom,
+                use_gpu=not args.cpu_only,
+                require_gpu=args.require_gpu,
+                amber_sh=args.amber_sh,
+                run_parmchk2=not args.no_parmchk2,
+            )
+    except Exception as exc:
+        result = {
+            "schema": "cypforge.gpu4pyscf_esp_cli_result.v1",
+            "status": "failed",
+            "error": str(exc),
+            "input_ligand_pose": args.ligand_pose,
+            "formal_charge": args.formal_charge,
+        }
+
+    pre_resp = result.get("pre_resp_relaxation", {}) if isinstance(result, dict) else {}
+    warnings = []
+    if isinstance(pre_resp, dict) and str(pre_resp.get("status", "")).lower() in {"warn", "warning"}:
+        warnings.append({
+            "source": "pre_resp_relaxation",
+            "status": "warning",
+            "gate": pre_resp.get("gate"),
+            "reason": pre_resp.get("reason") or pre_resp.get("error"),
+        })
+    canonical_status = str(result.get("status", "failed"))
+    if canonical_status.lower() in {"success", "prepared", "pass", "passed", "ok"} and warnings:
+        canonical_status = "warning"
+    canonical_manifest = {
+        "schema": "cypforge.ligand_parameterization_gate.v1",
+        "status": canonical_status,
+        "route": "supplied_reviewed_parameters" if supplied_pair else "qm_esp_charge_fit",
+        "qm_esp_resp_executed": bool(result.get("qm_esp_resp_executed", not supplied_pair)),
+        "warnings": warnings,
+        "source_schema": result.get("schema"),
+        "parameter_source": result.get("parameter_source", "calculated" if not supplied_pair else None),
+        "mol2": result.get("mol2"),
+        "frcmod": result.get("frcmod"),
+    }
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "ligand_parameterization_gate.json").write_text(
+        json.dumps(canonical_manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 0 if result.get("status") in {"prepared", "success"} else 2
+
+
+def cmd_module_ligand_leap(args: argparse.Namespace) -> int:
+    if args.blank_ligand_chain:
+        args.ligand_chain = ""
+    result = build_ligand_mapping_and_leapin(
+        complex_pdb=Path(args.complex_pdb),
+        prepare_report_json=Path(args.prepare_report_json),
+        ligand_mol2=Path(args.ligand_mol2),
+        ligand_frcmod=Path(args.ligand_frcmod),
+        ligand_resname=args.ligand_resname,
+        ligand_chain=args.ligand_chain,
+        expected_ligand_charge=args.expected_ligand_charge,
+        output_dir=Path(args.output_dir),
+        heme_resname=args.heme_resname,
+    )
+    return _print_json_result(result)
+
+
+def cmd_module_protonation_finalize(args: argparse.Namespace) -> int:
+    result = finalize_complex_protonation_mapping(
+        ligand_mapping_manifest_json=Path(args.ligand_mapping_manifest_json),
+        original_prepared_pdb=Path(args.original_prepared_pdb),
+        protonation_decision_json=Path(args.protonation_decision_json),
+        output_dir=Path(args.output_dir),
+    )
+    return _print_json_result(result)
+
+
+def cmd_module_solvate_render(args: argparse.Namespace) -> int:
+    result = prepare_complex_solvation_ionization(
+        protonation_manifest_json=Path(args.protonation_manifest_json),
+        output_dir=Path(args.output_dir),
+        protein_force_field=args.protein_force_field,
+        water_leaprc=args.water_leaprc,
+        water_model=args.water_model,
+        box_type=args.box_type,
+        buffer_a=args.buffer_a,
+        neutralizing_anion=args.neutralizing_anion,
+    )
+    return _print_json_result(result)
+
+
+def cmd_module_solvate_validate(args: argparse.Namespace) -> int:
+    result = validate_solvation_tleap_outputs(
+        solvation_manifest_json=args.solvation_manifest_json,
+        leap_log=args.leap_log,
+        output_json=args.output_json,
+    )
+    return _print_json_result(result, success_statuses={"success"})
+
+
+def cmd_module_pre_md_render(args: argparse.Namespace) -> int:
+    result = prepare_complex_pre_md_equilibration(
+        solvation_manifest_json=Path(args.solvation_manifest_json),
+        output_dir=Path(args.output_dir),
+        protocol_config_json=Path(args.protocol_config_json) if args.protocol_config_json else None,
+        write_default_config=not args.no_write_default_config,
+        stages_range=args.stages,
+    )
+    return _print_json_result(result)
+
+
+def cmd_module_pre_md_validate(args: argparse.Namespace) -> int:
+    result = validate_complex_pre_md_run(
+        pre_md_manifest_json=args.pre_md_manifest_json,
+        output_json=args.output_json,
+    )
+    return _print_json_result(result, success_statuses={"success"})
+
+
+def cmd_module_global_audit(args: argparse.Namespace) -> int:
+    result = run_complex_global_audit(
+        ligand_mapping_manifest_json=args.ligand_mapping_manifest_json,
+        protonation_manifest_json=args.protonation_manifest_json,
+        solvation_manifest_json=args.solvation_manifest_json,
+        pre_md_manifest_json=args.pre_md_manifest_json,
+        pre_md_run_validation_json=args.pre_md_run_validation_json,
+        output_dir=args.output_dir,
+    )
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 0 if result.get("status") != "FAIL" else 2
+
+
 def _load_config(run_name: str, run_root_override: str | None) -> RunConfig | None:
     """Load RunConfig from an existing run's run_config.json."""
     run_root = str(_run_root_for(run_name, run_root_override))
@@ -516,9 +842,7 @@ def _load_config(run_name: str, run_root_override: str | None) -> RunConfig | No
     return _dict_to_run_config(data, defaults={"run_name": run_name, "run_root": run_root})
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 #  Argument parser
-# ══════════════════════════════════════════════════════════════════════════════
 
 def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -549,7 +873,7 @@ def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", help="Available commands")
 
-    # ── init ──────────────────────────────────────────────────────────
+    # init
     p_init = sub.add_parser(
         "init",
         help="Initialize a new CYPForge run",
@@ -603,7 +927,7 @@ def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
     advanced.add_argument("--auto-accept-warn", action="store_true", help=advanced_help("Auto-accept WARN gates"))
     advanced.add_argument("--max-retries", type=int, default=0, help=advanced_help("Max retries on module failure (default: 0)"))
 
-    # ── run ───────────────────────────────────────────────────────────
+    # run
     p_run = sub.add_parser(
         "run",
         help="Execute the full pipeline",
@@ -614,7 +938,7 @@ def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
     p_run.add_argument("run_name", help="Name of the run to execute")
     p_run.add_argument("--run-root", help="Override run root directory")
 
-    # ── prep-only ─────────────────────────────────────────────────────
+    # prep-only
     p_prep = sub.add_parser(
         "prep-only",
         help="Run through pre-MD input rendering without launching MD",
@@ -625,7 +949,7 @@ def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
     p_prep.add_argument("run_name", help="Name of the run to execute")
     p_prep.add_argument("--run-root", help="Override run root directory")
 
-    # ── resume ────────────────────────────────────────────────────────
+    # resume
     p_resume = sub.add_parser(
         "resume",
         help="Resume a paused or failed run",
@@ -636,7 +960,7 @@ def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
     p_resume.add_argument("run_name", help="Name of the run to resume")
     p_resume.add_argument("--run-root", help="Override run root directory")
 
-    # ── status ────────────────────────────────────────────────────────
+    # status
     p_status = sub.add_parser(
         "status",
         help="Show workflow status table",
@@ -647,7 +971,7 @@ def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
     p_status.add_argument("run_name", help="Name of the run to inspect")
     p_status.add_argument("--run-root", help="Override run root directory")
 
-    # ── context ───────────────────────────────────────────────────────
+    # context
     p_context = sub.add_parser(
         "context",
         help="Export aggregated context for LLM agent",
@@ -701,12 +1025,124 @@ def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
     p_diagnose.add_argument("--run-root")
     p_diagnose.add_argument("--output")
 
+    p_module = sub.add_parser(
+        "module",
+        help="Run a single CYPForge module through the standard CLI",
+        description=(
+            "Developer and reproducibility interface for one Core/gate operation. "
+            "These commands wrap the same APIs used by the Outer Shell, so user-facing "
+            "workflows can call cypforge consistently through the installed entry point."
+        ),
+    )
+    module_sub = p_module.add_subparsers(dest="module_command", required=True)
+
+    p_heme = module_sub.add_parser("heme", help="Core 1 heme/CYM operations")
+    heme_sub = p_heme.add_subparsers(dest="heme_command", required=True)
+    p_heme_prepare = heme_sub.add_parser("prepare", help="Prepare protein+heme/CYM coordinates")
+    p_heme_prepare.add_argument("pdb")
+    p_heme_prepare.add_argument("--heme-state", required=True, choices=("IC6", "DIOXY", "CPDI", "CUSTOM"))
+    p_heme_prepare.add_argument("--output-dir", required=True)
+    p_heme_prepare.add_argument("--heme-resname", default="HEM")
+    p_heme_prepare.add_argument("--heme-chain", default=None)
+    p_heme_prepare.add_argument("--protein-chain", default=None)
+    p_heme_prepare.add_argument("--axial-cys-resid", type=int, default=None)
+    p_heme_prepare.add_argument("--custom-heme-mol2", default=None)
+    p_heme_prepare.add_argument("--custom-cyp-mol2", default=None)
+    p_heme_prepare.add_argument("--custom-frcmod", default=None)
+    p_heme_prepare.add_argument("--custom-state-label", default=None)
+    p_heme_prepare.add_argument("--trim-transmembrane-range", action="append", default=None, metavar="CHAIN:START-END")
+    p_heme_prepare.add_argument("--confirm-transmembrane-trim", action="store_true")
+    p_heme_leap = heme_sub.add_parser("leap", help="Build Core 1 heme/CYM LEaP input")
+    p_heme_leap.add_argument("--prepared-pdb", required=True)
+    p_heme_leap.add_argument("--prepare-report-json", required=True)
+    p_heme_leap.add_argument("--output-dir", required=True)
+    p_heme_leap.add_argument("--heme-resname", default="HEM")
+
+    p_ligand = module_sub.add_parser("ligand", help="Core 2 ligand operations")
+    ligand_sub = p_ligand.add_subparsers(dest="ligand_command", required=True)
+    p_ligand_prepare = ligand_sub.add_parser("prepare", help="Prepare or stage ligand parameters")
+    p_ligand_prepare.add_argument("--ligand-pose")
+    p_ligand_prepare.add_argument("--complex-pdb")
+    p_ligand_prepare.add_argument("--ligand-template-sdf")
+    p_ligand_prepare.add_argument("--supplied-mol2")
+    p_ligand_prepare.add_argument("--supplied-frcmod")
+    p_ligand_prepare.add_argument("--ligand-resname", default="LIG")
+    p_ligand_prepare.add_argument("--ligand-chain", default="")
+    p_ligand_prepare.add_argument("--blank-ligand-chain", action="store_true")
+    p_ligand_prepare.add_argument("--formal-charge", type=int, required=True)
+    p_ligand_prepare.add_argument("--spin", type=int, default=1)
+    p_ligand_prepare.add_argument("--basis", default="6-31g*")
+    p_ligand_prepare.add_argument("--points-per-atom", type=int, default=24)
+    p_ligand_prepare.add_argument("--output-dir", required=True)
+    p_ligand_prepare.add_argument("--fit-method", choices=["multiwfn-resp", "esp-lsq"], default="multiwfn-resp")
+    p_ligand_prepare.add_argument("--multiwfn-bin", default=None)
+    p_ligand_prepare.add_argument("--amber-sh", default=None)
+    p_ligand_prepare.add_argument("--prepare-only", action="store_true")
+    p_ligand_prepare.add_argument("--cpu-only", action="store_true")
+    p_ligand_prepare.add_argument("--require-gpu", action="store_true")
+    p_ligand_prepare.add_argument("--no-parmchk2", action="store_true")
+    p_ligand_prepare.add_argument("--resp-geometry-cleanup", choices=["h-only", "none"], default="none")
+    p_ligand_prepare.add_argument("--pre-resp-relax", choices=["pbe-h-only", "none"], default="pbe-h-only")
+    p_ligand_leap = ligand_sub.add_parser("leap", help="Build Core 2 ligand LEaP input")
+    p_ligand_leap.add_argument("--complex-pdb", required=True)
+    p_ligand_leap.add_argument("--prepare-report-json", required=True)
+    p_ligand_leap.add_argument("--ligand-mol2", required=True)
+    p_ligand_leap.add_argument("--ligand-frcmod", required=True)
+    p_ligand_leap.add_argument("--ligand-resname", required=True)
+    p_ligand_leap.add_argument("--ligand-chain", default="")
+    p_ligand_leap.add_argument("--blank-ligand-chain", action="store_true")
+    p_ligand_leap.add_argument("--expected-ligand-charge", type=int)
+    p_ligand_leap.add_argument("--output-dir", required=True)
+    p_ligand_leap.add_argument("--heme-resname", default="HEM")
+
+    p_module_prot = module_sub.add_parser("protonation", help="Core 3 protonation operations")
+    prot_module_sub = p_module_prot.add_subparsers(dest="module_protonation_command", required=True)
+    p_prot_finalize = prot_module_sub.add_parser("finalize", help="Apply reviewed protonation decision JSON")
+    p_prot_finalize.add_argument("--ligand-mapping-manifest-json", required=True)
+    p_prot_finalize.add_argument("--original-prepared-pdb", required=True)
+    p_prot_finalize.add_argument("--protonation-decision-json", required=True)
+    p_prot_finalize.add_argument("--output-dir", required=True)
+
+    p_solvate = module_sub.add_parser("solvate", help="Core 3 solvation operations")
+    solvate_sub = p_solvate.add_subparsers(dest="solvate_command", required=True)
+    p_solvate_render = solvate_sub.add_parser("render", help="Render solvation/ionization LEaP input")
+    p_solvate_render.add_argument("--protonation-manifest-json", required=True)
+    p_solvate_render.add_argument("--output-dir", required=True)
+    p_solvate_render.add_argument("--protein-force-field", choices=["ff14SB", "ff19SB"], default="ff19SB")
+    p_solvate_render.add_argument("--water-leaprc", default="leaprc.water.tip3p")
+    p_solvate_render.add_argument("--water-model", default="TIP3PBOX")
+    p_solvate_render.add_argument("--box-type", choices=["oct", "box"], default="oct")
+    p_solvate_render.add_argument("--buffer-a", type=float, default=10.0)
+    p_solvate_render.add_argument("--neutralizing-anion", default="Cl-")
+    p_solvate_validate = solvate_sub.add_parser("validate", help="Validate solvation LEaP outputs")
+    p_solvate_validate.add_argument("--solvation-manifest-json", required=True)
+    p_solvate_validate.add_argument("--leap-log", default=None)
+    p_solvate_validate.add_argument("--output-json", default=None)
+
+    p_pre_md = module_sub.add_parser("pre-md", help="Core 3 pre-MD operations")
+    pre_md_sub = p_pre_md.add_subparsers(dest="pre_md_command", required=True)
+    p_pre_md_render = pre_md_sub.add_parser("render", help="Render staged Amber pre-MD inputs")
+    p_pre_md_render.add_argument("--solvation-manifest-json", required=True)
+    p_pre_md_render.add_argument("--output-dir", required=True)
+    p_pre_md_render.add_argument("--protocol-config-json")
+    p_pre_md_render.add_argument("--no-write-default-config", action="store_true")
+    p_pre_md_render.add_argument("--stages", default="all", choices=("all", "1-8", "9"))
+    p_pre_md_validate = pre_md_sub.add_parser("validate", help="Validate pre-MD stage outputs")
+    p_pre_md_validate.add_argument("--pre-md-manifest-json", required=True)
+    p_pre_md_validate.add_argument("--output-json", default=None)
+
+    p_global_audit = module_sub.add_parser("global-audit", help="Run global CYP450 audit gates")
+    p_global_audit.add_argument("--ligand-mapping-manifest-json", required=True)
+    p_global_audit.add_argument("--protonation-manifest-json", required=True)
+    p_global_audit.add_argument("--solvation-manifest-json", required=True)
+    p_global_audit.add_argument("--pre-md-manifest-json", required=True)
+    p_global_audit.add_argument("--pre-md-run-validation-json", required=True)
+    p_global_audit.add_argument("--output-dir", required=True)
+
     return parser
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 #  Entry point
-# ══════════════════════════════════════════════════════════════════════════════
 
 def main() -> int:
     show_advanced = "--help-advanced" in sys.argv
@@ -748,6 +1184,26 @@ def main() -> int:
         return cmd_profile_show(args)
     elif args.command == "diagnose":
         return cmd_diagnose(args)
+    elif args.command == "module" and args.module_command == "heme" and args.heme_command == "prepare":
+        return cmd_module_heme_prepare(args)
+    elif args.command == "module" and args.module_command == "heme" and args.heme_command == "leap":
+        return cmd_module_heme_leap(args)
+    elif args.command == "module" and args.module_command == "ligand" and args.ligand_command == "prepare":
+        return cmd_module_ligand_prepare(args)
+    elif args.command == "module" and args.module_command == "ligand" and args.ligand_command == "leap":
+        return cmd_module_ligand_leap(args)
+    elif args.command == "module" and args.module_command == "protonation" and args.module_protonation_command == "finalize":
+        return cmd_module_protonation_finalize(args)
+    elif args.command == "module" and args.module_command == "solvate" and args.solvate_command == "render":
+        return cmd_module_solvate_render(args)
+    elif args.command == "module" and args.module_command == "solvate" and args.solvate_command == "validate":
+        return cmd_module_solvate_validate(args)
+    elif args.command == "module" and args.module_command == "pre-md" and args.pre_md_command == "render":
+        return cmd_module_pre_md_render(args)
+    elif args.command == "module" and args.module_command == "pre-md" and args.pre_md_command == "validate":
+        return cmd_module_pre_md_validate(args)
+    elif args.command == "module" and args.module_command == "global-audit":
+        return cmd_module_global_audit(args)
     else:
         parser.print_help()
         return 1

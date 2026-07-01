@@ -246,7 +246,7 @@ def _rmsd(coords_a: np.ndarray, coords_b: np.ndarray, mask: np.ndarray) -> float
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="PBE H-only ligand micro-relaxation — hydrogen atoms only, GPU-first, fast convergence."
+        description="PBE H-only ligand micro-relaxation - hydrogen atoms only, GPU-first, fast convergence."
     )
     parser.add_argument("--input-mol2", required=True)
     parser.add_argument("--output-mol2", required=True)
@@ -295,7 +295,7 @@ def main() -> int:
     if heavy_rmsd > 1.0e-4:
         raise RuntimeError(
             f"Heavy atoms shifted during H-only optimization: RMSD={heavy_rmsd:.6f} A. "
-            "This is a bug — heavy atoms must remain frozen."
+            "This is a bug - heavy atoms must remain frozen."
         )
 
     write_mol2(out, lines, atom_line_indices, atoms, h_coords)
@@ -317,7 +317,7 @@ def main() -> int:
         "stage": {
             "name": "H-only PBE optimization",
             "active_atoms": "hydrogen atoms only",
-            "frozen_atoms": "all heavy atoms — never moved",
+            "frozen_atoms": "all heavy atoms - never moved",
             **h_report,
         },
         "heavy_atom_rmsd_to_input_a": round(heavy_rmsd, 8),

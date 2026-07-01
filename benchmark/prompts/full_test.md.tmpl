@@ -58,16 +58,16 @@ Stop after rendering and statically auditing pre-MD inputs. Do not run any MD si
 Allowed CYPForge usage:
 - You may use CYPForge skills and workflow documentation from the declared project root.
 - You may inspect and use individual CYPForge scripts.
-- You may use cypforge.cmd or scripts/cypforge_run.py for non-MD commands such as init, prep-only, status, and context.
-- The project supports a no-MD outer-shell path: scripts\cypforge_run.py prep-only. This command must stop before cypforge.core3_run_pre_md.
-- Do not call scripts/cypforge_run.py run or resume for this benchmark. Those commands can enter cypforge.core3_run_pre_md, which executes run_pre_md.sh via WSL and launches MD.
+- You may use the installed `cypforge` CLI for non-MD commands such as init, prep-only, status, and context.
+- The project supports a no-MD outer-shell path: `cypforge prep-only`. This command must stop before cypforge.core3_run_pre_md.
+- Do not call `cypforge run` or `cypforge resume` for this benchmark. Those commands can enter cypforge.core3_run_pre_md, which executes run_pre_md.sh via WSL and launches MD.
 - Do not execute RUN_ROOT\17_complex_pre_md_equilibration\run_pre_md.sh or run_pre_md_windows.ps1.
 - Do not launch pmemd.cuda, pmemd, or sander.
 
 Project-specific execution guidance:
 - Use the real module order encoded in src\cypforge_core\orchestrator\models.py, but stop before cypforge.core3_run_pre_md.
 - A faithful no-MD endpoint is cypforge.core3_render_pre_md:
-  scripts\complex_pre_md_equilibration.py renders mdin files and run scripts but does not itself run MD.
+  `cypforge module pre-md render` renders mdin files and run scripts but does not itself run MD.
 - cypforge.global_audit, cypforge.equilibration_decision, and cypforge.production_readiness_check require pre-MD run-validation evidence and are not valid success targets in this no-MD benchmark unless you create a clearly marked static-only replacement report.
 - For protonation, this case's expected decision is:
   {{case.expected_protonation_decision}}

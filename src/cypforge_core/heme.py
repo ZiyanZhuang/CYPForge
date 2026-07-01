@@ -18,7 +18,7 @@ def _default_heme_root() -> Path:
 
     Two lookup paths in order:
 
-    1. Source / editable install fast path — the sibling ``cypforge`` package
+    1. Source / editable install fast path - the sibling ``cypforge`` package
        layout (``src/cypforge/data/heme_params``) is a real on-disk directory
        in this repo, so checking the obvious parent path lets dev work proceed
        without importlib overhead.

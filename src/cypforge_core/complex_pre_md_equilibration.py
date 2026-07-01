@@ -402,7 +402,9 @@ def prepare_complex_pre_md_equilibration(
         },
         "engine": config.get("engine", "pmemd.cuda"),
         "stage_count": len(rendered_stages),
+        "active_stage_count": len(active_stages),
         "stages": rendered_stages,
+        "active_stages": active_stages,
         "safety_gates": {
             "topology_restart_pairing_probe_required_before_execution": True,
             "restrained_stages_require_ref": True,
@@ -440,9 +442,14 @@ def validate_complex_pre_md_run(
 
     reasons: list[str] = []
     stages = _parse_stage_status(stage_status_path)
-    expected_stages = [stage for stage in manifest.get("stages", []) if manifest.get("stages_range") == "all"]
+    expected_stages = manifest.get("active_stages")
     if not expected_stages:
-        expected_stages = manifest.get("stages", [])
+        if manifest.get("stages_range") == "1-8":
+            expected_stages = [stage for stage in manifest.get("stages", []) if int(stage.get("index", 0)) <= 8]
+        elif manifest.get("stages_range") == "9":
+            expected_stages = [stage for stage in manifest.get("stages", []) if int(stage.get("index", 0)) == 9]
+        else:
+            expected_stages = manifest.get("stages", [])
 
     if not started_path.is_file():
         reasons.append(f"Missing run start marker: {started_path}")

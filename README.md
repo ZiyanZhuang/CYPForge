@@ -6,7 +6,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/python-%E2%89%A53.9-blue" alt="Python 3.9+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20WSL%20%7C%20Linux-lightgrey" alt="Platform">
-  <img src="https://img.shields.io/badge/version-1.2.0-brightgreen" alt="Version 1.2.0">
+  <img src="https://img.shields.io/badge/version-1.3.0-brightgreen" alt="Version 1.3.0">
 </p>
 
 # CYPForge
@@ -57,11 +57,11 @@ cd CYPForge
 pip install -e ".[qm,test]"
 
 # sanity check
-cypforge --version                       # cypforge v1.2.0
+cypforge --version                       # cypforge v1.3.0
 python -B -m pytest tests -q             # external-data tests may be skipped
 ```
 
-`pip install -e .` puts the `cypforge` console script on your `PATH`. The legacy `cypforge.cmd` wrapper and `python scripts/cypforge_run.py …` still work.
+`pip install -e .` puts the `cypforge` console script on your `PATH`. Use `cypforge module ...` for individual Core/gate operations; the legacy wrappers remain only for compatibility.
 
 ---
 
@@ -213,7 +213,7 @@ Full provenance: [`src/cypforge/data/heme_params/PROVENANCE.json`](src/cypforge/
 
 ### CYPForge itself
 
-A manuscript is in preparation. Until then, cite the repository URL and the released tag (`v1.2.0`).
+A manuscript is in preparation. Until then, cite the repository URL and the released tag (`v1.3.0`).
 
 ---
 

@@ -1,4 +1,4 @@
-REMARK  cleaned from D:\Download\1Z10.cif
+REMARK  cleaned from source structure 1Z10.cif
 REMARK  retained auth chain A protein plus HEM 500 and COU 501
 ATOM      1  N   LYS A  30      30.061  86.862  84.390  1.00 80.16           N  
 ATOM      2  CA  LYS A  30      30.374  85.654  85.233  1.00 79.62           C  

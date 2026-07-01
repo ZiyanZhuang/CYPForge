@@ -120,7 +120,7 @@ def _ligand_atom_check(*, ligand_mol2: Path, ligand_entries: list[dict[str, Any]
         fatal = True
     if missing_in_mol2 or missing_in_pdb:
         # Name differences may occur when PDB and MOL2 use different naming conventions.
-        # This is acceptable as long as atom counts match — use coordinate-based fallback.
+        # This is acceptable as long as atom counts match - use coordinate-based fallback.
         errors.append(f"Atom names differ: missing_in_mol2={missing_in_mol2}; missing_in_pdb={missing_in_pdb}")
     if duplicate_pdb_names or duplicate_mol2_names:
         errors.append(f"Duplicate atom names: pdb={duplicate_pdb_names}; mol2={duplicate_mol2_names}")

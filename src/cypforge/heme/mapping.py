@@ -237,10 +237,10 @@ def detect_heme_state(
     Determine the heme iron spin/coordination state.
 
     Auto-detection logic (from PDB coordinates):
-      - 0 O atoms within 2.5 Å of Fe → IC6  (penta-coordinate, resting)
-      - 1 O atom, distance < 1.70 Å   → CPDI (Compound I, Fe=O)
-      - 2 O atoms within 2.5 Å of Fe  → DIOXY (ferrous-oxy, Fe-O-O)
-      - 1 O atom, 1.70–2.50 Å         → water-bound (not parameterised),
+      - 0 O atoms within 2.5 Å of Fe -> IC6  (penta-coordinate, resting)
+      - 1 O atom, distance < 1.70 Å   -> CPDI (Compound I, Fe=O)
+      - 2 O atoms within 2.5 Å of Fe  -> DIOXY (ferrous-oxy, Fe-O-O)
+      - 1 O atom, 1.70-2.50 Å         -> water-bound (not parameterised),
                                           fallback to IC6 with a warning
 
     Note: distal O ligands are often in a separate residue (e.g. OXY, O) rather
@@ -265,7 +265,7 @@ def detect_heme_state(
                 distal_o_count=0,
                 distal_o_distances=[],
                 warning=(
-                    "Custom heme state — auto-detection of distal ligands is "
+                    "Custom heme state - auto-detection of distal ligands is "
                     "bypassed. The user is responsible for providing correct "
                     "mol2 and frcmod files."
                 ),
@@ -883,7 +883,7 @@ def map_heme_template(
 
     source_atoms, duplicates = dedupe_heme_atoms(raw_atoms)
 
-    # ── State detection / override ──────────────────────────────────────────
+    # -- State detection / override ------------------------------------------
     # Parse all atoms for cross-residue distal O detection (e.g. OXY residue)
     all_atoms = parse_pdb_atoms(pdb_path)
     state_result = detect_heme_state(source_atoms, manual_state=heme_state,
@@ -892,12 +892,12 @@ def map_heme_template(
         import warnings
         warnings.warn(state_result.warning, UserWarning, stacklevel=2)
 
-    # ── Template loading ────────────────────────────────────────────────────
+    # -- Template loading ----------------------------------------------------
     template_path = resolve_template_mol2_path(state_result.state, template_mol2_path)
     template_atoms = load_template_atoms_from_mol2(template_path)
     template_frame = build_template_frame_from_atoms(template_atoms)
 
-    # ── Proximal anchor (Cys SG) ────────────────────────────────────────────
+    # -- Proximal anchor (Cys SG) --------------------------------------------
     proximal_vec = np.asarray(proximal_anchor, dtype=float) if proximal_anchor is not None else None
     proximal_record: Optional[AtomRecord] = None
     if proximal_vec is None:
@@ -913,7 +913,7 @@ def map_heme_template(
 
     source_frame, frame_diag = build_source_frame(source_atoms, proximal_vec)
 
-    # ── Atom matching + coordinate rewrite ──────────────────────────────────
+    # -- Atom matching + coordinate rewrite ----------------------------------
     template_names = {a.name for a in template_atoms}
     direct_matches = {a.name: a.name for a in source_atoms if a.name in template_names}
     unmatched_src = [a for a in source_atoms if a.name not in direct_matches]
