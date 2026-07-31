@@ -17,6 +17,14 @@ You bring Amber/AmberTools and Multiwfn. CYPForge drives them.
 
 ---
 
+> [!IMPORTANT]
+> **If you use CYPForge in published work, please cite the preprint:**
+>
+> Zhuang ZY, Zhao QY, Shao YRS, Zhao GR, Li Y, Zhang DC. *CYPForge: Auditable Preparation of Cytochrome P450 Molecular Dynamics Systems.* **ChemRxiv** (Preprint), 2026.
+> **DOI:** [10.26434/chemrxiv.15006764/v1](https://doi.org/10.26434/chemrxiv.15006764/v1)
+
+---
+
 ## Quick start with an AI agent
 
 Use an agent to verify an existing environment and render the bundled benchmark.
