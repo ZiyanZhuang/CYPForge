@@ -213,7 +213,7 @@ Full provenance: [`src/cypforge/data/heme_params/PROVENANCE.json`](src/cypforge/
 
 ### CYPForge itself
 
-A manuscript is in preparation. Until then, cite the repository URL and the released tag (`v1.3.0`).
+> Zhuang ZY, Zhao QY, Shao YRS, et al. *CYPForge: Auditable Preparation of Cytochrome P450 Molecular Dynamics Systems.* **ChemRxiv** (Preprint), 30 July 2026. [doi:10.26434/chemrxiv.15006764/v1](https://doi.org/10.26434/chemrxiv.15006764/v1)
 
 ---
 
