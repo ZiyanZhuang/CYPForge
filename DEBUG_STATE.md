@@ -196,6 +196,14 @@
 - Green: 2 local-knowledge cases; full native regression **164 passed, 6 skipped**, one existing warning; no duplicate search result and a truly identical resync remains unchanged.
 - Commit: `fix: refresh docs index when provenance metadata changes`.
 
+### F22 / P2: local docs connections retain Windows file locks until GC
+
+- Red: public indexing/query with real tracked SQLite connections left them open (**1 failed**); rollback self-check already passed.
+- Root cause: SQLite's connection context manager handles commit/rollback but does not close the connection. Library users experienced nondeterministic file-lock release (CLI process exit eventually releases it).
+- Fix: the existing connection boundary now owns a transaction and deterministic finally-close, including schema/query/index exceptions. Both callers reuse it unchanged.
+- Green: 4 local-knowledge cases; full native regression **166 passed, 6 skipped**, one existing warning. Immediate database deletion succeeds and a simulated failed reindex preserves old searchable content/metadata.
+- Commit: `fix: close local docs connections after every operation`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

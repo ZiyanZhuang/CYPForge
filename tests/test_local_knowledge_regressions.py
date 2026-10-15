@@ -1,4 +1,6 @@
 import json
+import sqlite3
+import pytest
 
 from cypforge_core.local_knowledge import build_run_diagnosis, LocalDocsIndex
 
@@ -43,3 +45,54 @@ def test_docs_sync_refreshes_source_and_version_when_content_is_unchanged(tmp_pa
     assert len(rows) == 1
     assert (rows[0]["source"], rows[0]["version"]) == ("ambertools", "25")
     assert index.index_file(manual, source="ambertools", version="25")["status"] == "unchanged"
+
+
+def test_docs_operations_close_connections_deterministically(tmp_path, monkeypatch):
+    original_connect = sqlite3.connect
+    connections = []
+
+    class TrackedConnection(sqlite3.Connection):
+        closed = False
+
+        def close(self):
+            self.closed = True
+            super().close()
+
+    def connect(*args, **kwargs):
+        connection = original_connect(*args, **kwargs, factory=TrackedConnection)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(sqlite3, "connect", connect)
+    manual = tmp_path / "manual.txt"
+    manual.write_text("unknown residue\n", encoding="utf-8")
+    index = LocalDocsIndex(tmp_path / "docs.sqlite3")
+    try:
+        index.index_file(manual, source="amber")
+        index.query("unknown")
+        assert connections and all(connection.closed for connection in connections)
+        index.database.unlink()
+    finally:
+        for connection in connections:
+            connection.close()
+
+
+def test_failed_docs_update_rolls_back_previous_searchable_content(tmp_path, monkeypatch):
+    manual = tmp_path / "manual.txt"
+    manual.write_text("original unknown residue\n", encoding="utf-8")
+    index = LocalDocsIndex(tmp_path / "docs.sqlite3")
+    index.index_file(manual, source="amber", version="24")
+    original_connect = sqlite3.connect
+
+    class FailingConnection(sqlite3.Connection):
+        def executemany(self, *args, **kwargs):
+            raise sqlite3.OperationalError("simulated index failure")
+
+    manual.write_text("replacement content\n", encoding="utf-8")
+    with monkeypatch.context() as patch:
+        patch.setattr(sqlite3, "connect", lambda *args, **kwargs: original_connect(*args, **kwargs, factory=FailingConnection))
+        with pytest.raises(sqlite3.OperationalError, match="simulated"):
+            index.index_file(manual, source="ambertools", version="25")
+    rows = index.query("original")
+    assert len(rows) == 1
+    assert (rows[0]["source"], rows[0]["version"]) == ("amber", "24")

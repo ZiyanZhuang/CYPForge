@@ -7,9 +7,10 @@ import re
 import shutil
 import sqlite3
 import subprocess
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 
 DEFAULT_HOME = Path.home() / ".cypforge"
@@ -118,18 +119,23 @@ class LocalDocsIndex:
         self.database = Path(database) if database else DEFAULT_HOME / "docs" / "index.sqlite3"
         self.database.parent.mkdir(parents=True, exist_ok=True)
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(self.database)
-        connection.execute(
-            "CREATE TABLE IF NOT EXISTS documents ("
-            "id INTEGER PRIMARY KEY, source TEXT, version TEXT, path TEXT, sha256 TEXT, "
-            "url TEXT, license_note TEXT, indexed_at TEXT)"
-        )
-        connection.execute(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS chunks USING fts5("
-            "document_id UNINDEXED, source, version, heading, content, tokenize='unicode61')"
-        )
-        return connection
+        try:
+            with connection:
+                connection.execute(
+                    "CREATE TABLE IF NOT EXISTS documents ("
+                    "id INTEGER PRIMARY KEY, source TEXT, version TEXT, path TEXT, sha256 TEXT, "
+                    "url TEXT, license_note TEXT, indexed_at TEXT)"
+                )
+                connection.execute(
+                    "CREATE VIRTUAL TABLE IF NOT EXISTS chunks USING fts5("
+                    "document_id UNINDEXED, source, version, heading, content, tokenize='unicode61')"
+                )
+                yield connection
+        finally:
+            connection.close()
 
     def index_file(self, path: str | Path, *, source: str, version: str = "") -> dict[str, Any]:
         source_key = source.lower()
