@@ -22,7 +22,7 @@
 - `gh release list` initially reported missing authentication. A later read-only live check succeeded using the existing context, with repository push/admin permission metadata; no login or credential extraction was performed. Authenticated tag/Release GETs for v1.1.0/v1.1.1 all returned 404. Unauthenticated API was rate-limited (403), never treated as an existence check.
 - Task-owned run directory outside the repository is writable. Working source has no user modifications. Git push dry-run succeeded; actual branch/tag/Release publication remains gated on reviews.
 - Current full regression: **255 passed, 6 skipped** native; **251 passed, 10 skipped** WSL. Both have one existing warning. Six shared skips need absent optional external fixtures; WSL's four additional skips are two native Windows launchers, one native Windows/WSL locking test and the Windows path-length boundary.
-- Repair totals: **53 separate defect commits: 1 P0, 41 P1, 11 P2** (52 code defects plus one documentation-contract defect). Formal rounds 1 and 2 have passed; round 3 remains the next publication gate.
+- Repair totals: **53 defect records with dedicated repair commits: 1 P0, 41 P1, 11 P2** (52 code defects plus one documentation-contract defect). Formal rounds 1 and 2 have passed; round 3 remains the next publication gate.
 
 ## Findings and fixes
 
@@ -459,6 +459,7 @@
 - Fix: synchronize canonical manifest/prepared filenames, route-specific evidence, optional human reports, actual UUID/StepRecord logging, reviewed retry semantics and the new-run boundary after changed consumed inputs. Scientific gates and code remain unchanged.
 - Green: the same external contract probe passes; full native regression **255 passed, 6 skipped**, one existing warning. Round 3 must re-review the frozen doc-only fix before publication.
 - Commit: `docs: align execution skills with actual controller artifacts`.
+- Same-round completeness check: an independent public toy `apply --decision-json` returned 0, kept its external decision path in config and did not create the default run-root filename (`../debug_artifacts/review3_external_decision_3addf13d/result.json`). The plan's initially unconditional default-path statement was red against that evidence, then clarified for `--set` versus `--decision-json`; the selected config path is authoritative. Contract probe and full 255/6 native suite were repeated. Follow-up commit: `docs: distinguish external protonation decision paths`.
 
 ## Module coverage
 

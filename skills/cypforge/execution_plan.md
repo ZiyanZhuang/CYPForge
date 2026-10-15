@@ -61,8 +61,10 @@ has no MD-run, global-audit or final-decision output yet. `run_config.json` and
 record step results and logs there; they do not generate an environment manifest.
 The supplied-parameter route additionally writes
 `10_ligand_gpu4pyscf_esp/supplied_ligand_parameters_manifest.json`; new-fit routes
-have their own fitting artifacts. The explicit protonation decision is recorded
-in `protonation_decision.json` by `protonation apply`.
+have their own fitting artifacts. `protonation apply --set` writes the default
+`protonation_decision.json`; `--decision-json` keeps the caller's reviewed input
+path without copying it there. Use `run_config.json`'s
+`protonation_decision_json` field to locate the selected decision.
 
 ## Command Logging
 
