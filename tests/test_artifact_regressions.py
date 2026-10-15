@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import sys
 import os
+import shlex
 from cypforge_core.io import _win_to_wsl
 
 import pytest
@@ -151,6 +152,25 @@ def test_reference_path_quotes_do_not_break_generated_bash(solvation_outputs, tm
     prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, protocol_config_json=config, output_dir=tmp_path / "rendered")
     script = (tmp_path / "rendered/run_pre_md.sh").read_text(encoding="utf-8")
     assert _bash_probe(script, parse_only=True).returncode == 0
+
+
+def test_pre_md_rerun_cannot_reuse_previous_stage_outputs(solvation_outputs, tmp_path):
+    manifest, _ = solvation_outputs
+    output = tmp_path / "rerun"
+    result = prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, output_dir=output)
+    first = result["active_stages"][0]
+    (output / "run" / f"{first['id']}.out").write_text("Final Performance Info\n", encoding="utf-8")
+    (output / first["output_restart"]).write_text("old restart", encoding="utf-8")
+    script = (output / "run_pre_md.sh").read_text(encoding="utf-8")
+    directory = _win_to_wsl(output) if sys.platform == "win32" else str(output)
+    # The engine is the shell builtin true: it exits 0 and produces no new files.
+    probe = _bash_probe(
+        f"cd {shlex.quote(directory)}\n"
+        "cpptraj() { cat >/dev/null; printf '1 frames\\n'; }\n"
+        "export -f cpptraj\nexport AMBER_ENGINE=true\n" + script
+    )
+    assert probe.returncode == 5
+    assert not (output / first["output_restart"]).exists()
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows launcher boundary")

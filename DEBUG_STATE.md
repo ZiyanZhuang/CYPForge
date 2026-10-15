@@ -268,6 +268,14 @@
 - Green: 12 persistence cases; full native regression **188 passed, 6 skipped**, one existing warning. Dedicated bidirectional/crash-recovery verification follows.
 - Commit: `fix: exclude WSL writers with an exclusive Windows lock handle`.
 
+### F31 / P1: pre-MD reruns can falsely pass using stale engine output
+
+- Red: independent nine-stage fake engine rerun returned 0 without writing files yet reused all 23 old artifacts and validated success. A focused no-op-engine test retained the old first-stage restart.
+- Root cause: generated reruns reused fixed output filenames and previous completion markers without clearing them before each attempt.
+- Fix: invalidate previous completion/exit markers at run start and remove each selected stage's output/restart/trajectory immediately before its engine invocation. The existing `-O` rerun contract already replaces those outputs; prior-stage inputs and unselected stages are preserved.
+- Green: 23 artifact cases; full native regression **189 passed, 6 skipped**, one existing warning. Only shell builtins/fake processes executed; no MD.
+- Commit: `fix: invalidate stale pre-MD outputs before rerunning stages`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

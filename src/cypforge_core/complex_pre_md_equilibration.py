@@ -678,6 +678,7 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
         'AMBER_ENGINE=${AMBER_ENGINE:-' + shlex.quote(str(engine)) + '}',
         'cd "$(dirname "$0")"',
         "mkdir -p run",
+        "rm -f -- run/run_pre_md.exit_code.txt run/run_pre_md.finished_at.txt",
         "date -Is > run/run_pre_md.started_at.txt",
         "printf 'stage\\tmdout\\trestart\\texit_code\\tnormal_end\\n' > run/stage_status.tsv",
         "",
@@ -706,6 +707,9 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
         "",
     ]
     for stage in stages:
+        outputs = [f"run/{stage['id']}.out", f"run/{stage['id']}.info", stage["output_restart"]]
+        if stage["trajectory"]:
+            outputs.append(f"run/{stage['trajectory']}")
         args = [
             '"$AMBER_ENGINE"',
             "-O",
@@ -722,6 +726,7 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
             args.append(f"-ref {shlex.quote(stage['reference_restart'])}")
         lines.extend(
             [
+                "rm -f -- " + " ".join(shlex.quote(path) for path in outputs),
                 "set +e",
                 " ".join(args),
                 "rc=$?",
