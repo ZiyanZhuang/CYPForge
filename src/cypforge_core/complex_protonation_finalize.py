@@ -225,10 +225,12 @@ def recommend_protonation_states(
         if not evidence_path.is_file():
             raise FileNotFoundError(f"Missing protonation evidence JSON: {evidence_path}")
         evidence_data = _read_json(evidence_path)
-        records = evidence_data.get("recommendations", evidence_data)
+        records = evidence_data.get("recommendations") if isinstance(evidence_data, dict) else evidence_data
         if not isinstance(records, list):
             raise ValueError("Protonation evidence must be a list or contain a recommendations list.")
         for row in records:
+            if not isinstance(row, dict):
+                raise ValueError("Each protonation evidence record must be an object.")
             chain = str(row.get("chain", "")).strip() or "A"
             resid = int(row["resid"])
             current = str(row.get("current_resname", "")).upper()

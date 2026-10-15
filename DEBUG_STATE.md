@@ -180,6 +180,14 @@
 - Green: 4 focused context cases; full native regression **158 passed, 6 skipped**, one existing warning. The regression also confirms unselected bulk is omitted and large arrays are still summarized.
 - Commit: `fix: preserve nested manifest evidence in agent context`.
 
+### F20 / P2: supported top-level evidence list crashes protonation recommend
+
+- Red: list-form evidence and three malformed-shape cases raised AttributeError; wrapped-object evidence already passed (**4 failed, 1 passed**).
+- Root cause: `.get` was called before distinguishing a list from its optional object wrapper; rows were also assumed to be objects.
+- Fix: distinguish the two documented forms, reject invalid root/row shapes with ValueError. Advisory behavior and allowed state transitions are unchanged.
+- Green: 7 protonation cases; full native regression **163 passed, 6 skipped**, one existing warning; tests verify recommendations do not modify the original structure.
+- Commit: `fix: accept list-form protonation evidence safely`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

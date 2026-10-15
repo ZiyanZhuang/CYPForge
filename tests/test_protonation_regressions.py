@@ -49,3 +49,32 @@ def test_recommended_selector_preserves_original_chain_through_apply(tmp_path, p
     assert result["status"] == "success"
     assert decision["recommended_changes"][0]["original_chain"] == chain
     assert result["expected_final_residue_checks"]["1"]["found_resname"] == "GLH"
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_protonation_evidence_accepts_list_or_object_without_applying_changes(tmp_path, protonation_inputs, wrapped):
+    original, manifest = protonation_inputs("A")
+    before = original.read_bytes()
+    rows = [{"chain": "A", "resid": 419, "current_resname": "GLU", "recommended_resname": "GLH"}]
+    evidence = tmp_path / "evidence.json"
+    evidence.write_text(json.dumps({"recommendations": rows} if wrapped else rows), encoding="utf-8")
+
+    report = recommend_protonation_states(
+        ligand_mapping_manifest_json=manifest, original_prepared_pdb=original,
+        output_dir=tmp_path / "review", evidence_json=evidence,
+    )
+
+    assert report["recommendations"][0]["recommended_resname"] == "GLH"
+    assert original.read_bytes() == before
+
+
+@pytest.mark.parametrize("payload", [42, "invalid", [None]])
+def test_invalid_protonation_evidence_reports_contract_error(tmp_path, protonation_inputs, payload):
+    original, manifest = protonation_inputs("A")
+    evidence = tmp_path / "evidence.json"
+    evidence.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="[Ee]vidence"):
+        recommend_protonation_states(
+            ligand_mapping_manifest_json=manifest, original_prepared_pdb=original,
+            output_dir=tmp_path / "review", evidence_json=evidence,
+        )
