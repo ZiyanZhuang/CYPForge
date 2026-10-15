@@ -234,7 +234,7 @@ def _determine_next_actions(
         else:
             actions.append("WARN_HUMAN_REVIEW")
     elif "cypforge.global_audit" in completed_ids:
-        actions.append("ALLOW_1_5_NS_FREE_EQUILIBRATION")
+        actions.append(f"Next module: {remaining[0]}")
     elif "cypforge.core3_run_pre_md" in completed_ids:
         actions.append("RUN_GLOBAL_AUDIT")
     else:

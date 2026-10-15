@@ -372,6 +372,14 @@
 - Green: 11 CLI cases; full native regression **229 passed, 6 skipped**, one existing warning.
 - Commit: `fix: reject incomplete existing runs at the CLI boundary`.
 
+### F44 / P1: agent context grants equilibration before the decision gate
+
+- Red: context after a PASS or auto-accepted WARN global audit emitted ALLOW_1_5_NS_FREE_EQUILIBRATION while the equilibration-decision module was still PENDING (2 failed cases).
+- Root cause: next-action selection treated a completed audit as authorization and bypassed the following fixed-order decision module.
+- Fix: direct the agent to the next remaining module instead; final authorization still requires the existing final decision checks. This enforces the existing decision order without changing scientific policy.
+- Green: 3 context cases; full native regression **231 passed, 6 skipped**, one existing warning.
+- Commit: `fix: keep context actions behind the equilibration decision gate`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

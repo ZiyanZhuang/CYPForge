@@ -1,6 +1,8 @@
 import json
+import pytest
 
 from cypforge_core.orchestrator import build_agent_context
+from cypforge_core.orchestrator.models import build_module_definitions
 
 
 def test_context_retains_nested_output_paths_charge_and_failed_residue_evidence(tmp_path):
@@ -23,3 +25,16 @@ def test_context_retains_nested_output_paths_charge_and_failed_residue_evidence(
     assert compact["expected_final_residue_checks"]["1"] == data["expected_final_residue_checks"]["1"]
     assert "unselected_bulk" not in compact
     assert compact["outputs"] == "[100 items]"
+
+
+@pytest.mark.parametrize("audit_status", ["PASS", "WARN"])
+def test_context_does_not_authorize_equilibration_before_the_decision(tmp_path, audit_status):
+    modules = {
+        module.skill_id: {"status": "PASS" if module.index < 8 else "PENDING"}
+        for module in build_module_definitions()
+    }
+    modules["cypforge.global_audit"]["status"] = audit_status
+    context = build_agent_context({"run_root": str(tmp_path), "workflow_status": "RUNNING", "modules": modules})
+    actions = context["next_allowed_actions"]
+    assert not any(action.startswith("ALLOW_") for action in actions)
+    assert any("cypforge.equilibration_decision" in action for action in actions)
