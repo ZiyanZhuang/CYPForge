@@ -315,7 +315,11 @@ def cmd_init(args: argparse.Namespace) -> int:
     )
 
     orch = CYPForgeOrchestrator(config)
-    orch.init()
+    try:
+        orch.init()
+    except FileExistsError:
+        print(f"[ERROR] Run directory already exists: {run_root}. Use prep-only/resume or a new run directory.")
+        return 2
 
     print(f"Run initialized: {run_name}")
     print(f"  Run root:    {run_root}")

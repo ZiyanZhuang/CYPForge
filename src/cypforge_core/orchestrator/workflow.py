@@ -71,7 +71,8 @@ class WorkflowManager:
 
     def init_run(self) -> RunManifest:
         """Create run_root, write run_config.json, and return a fresh RunManifest."""
-        self.run_root.mkdir(parents=True, exist_ok=True)
+        # Exclusive creation also prevents concurrent init from resetting a run.
+        self.run_root.mkdir(parents=True, exist_ok=False)
         # Ensure standard subdirectories exist
         (self.run_root / "logs").mkdir(exist_ok=True)
         (self.run_root / "decisions").mkdir(exist_ok=True)

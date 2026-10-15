@@ -23,7 +23,13 @@
 
 ## Findings and fixes
 
-None accepted yet. Each entry will record priority, red/green evidence, root cause, changed scope, full regression, and commit.
+### F01 / P0: repeated or concurrent init overwrites an existing run
+
+- Reproduction: `python -B -m pytest tests/test_persistence.py -q` initially **3 failed**: second initialization did not raise, both concurrent initializers reported success, CLI returned 0 for an occupied directory.
+- Root cause: `WorkflowManager.init_run` used `mkdir(exist_ok=True)` before overwriting both persistent JSON files. All callers (`CYPForgeOrchestrator.init/run_until`, CLI, legacy shim, tests) were checked.
+- Fix: exclusive directory creation is the shared ownership boundary; CLI reports an occupied run root with `[ERROR]` and exit 2. Existing run contents remain untouched, including an existing empty directory (choose a new path).
+- Green: 3 focused tests passed; complete native regression **100 passed, 6 skipped**, one existing legacy-wrapper deprecation warning. Runtime: existing Conda `codex-dev` Python 3.12.14, numpy 2.5.2, pytest 9.1.1; process-local source `PYTHONPATH`, plugin autoload disabled. No installation.
+- Commit: `fix: prevent init from overwriting existing runs` (this entry is included in that commit).
 
 ## Module coverage
 
