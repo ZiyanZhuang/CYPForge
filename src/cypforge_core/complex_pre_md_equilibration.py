@@ -566,9 +566,9 @@ def _validate_protocol_config(config: dict[str, Any]) -> dict[str, Any]:
     restrained_count = 0
     for stage in stages:
         stage_id = _safe_stage_id(stage.get("id", ""))
-        if stage_id in seen:
+        if stage_id.casefold() in seen:
             raise ValueError(f"Duplicate stage id: {stage_id}")
-        seen.add(stage_id)
+        seen.add(stage_id.casefold())
         if stage.get("kind") not in {"minimization", "md"}:
             raise ValueError(f"Stage {stage_id} kind must be minimization or md.")
         params = stage.get("parameters")
@@ -596,6 +596,8 @@ def _validate_protocol_config(config: dict[str, Any]) -> dict[str, Any]:
 def _safe_stage_id(stage_id: str) -> str:
     if not isinstance(stage_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", stage_id):
         raise ValueError(f"Invalid stage id: {stage_id!r}")
+    if stage_id.casefold() == "system_lig_solv":
+        raise ValueError(f"Stage id collides with the initial restart: {stage_id}")
     return stage_id
 
 

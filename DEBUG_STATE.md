@@ -414,6 +414,15 @@
 - Green: 12 runner cases; full native regression **244 passed, 6 skipped**, one existing warning. Native-Linux backend selection is simulated; actual execution is verified on Windows→WSL and WSL/Linux.
 - Commit: `fix: run Amber commands directly on native Linux`.
 
+### F49 / P1: custom stage outputs can alias the initial/previous restart
+
+- Formal correctness review found a new boundary in F31: legal stage ID `system_lig_solv` made output restart equal the copied initial input, so cleanup deleted input before a fake engine read it (exit 77). Real DrvFS probes confirmed uppercase alias and `custom`/`CUSTOM` cross-stage aliases.
+- Red: three public render tests accepted the reserved initial filename and case-equivalent duplicate IDs (**3 failed**).
+- Root cause: stage-name validation ignored the fixed initial-file namespace and case-insensitive filesystem aliasing.
+- Fix: reserve `system_lig_solv` irrespective of case and require case-folded stage-ID uniqueness before rendering. No scientific parameter or MD behavior changed for valid distinct IDs.
+- Green: 45 artifact cases; full native regression **247 passed, 6 skipped**, one existing warning. The source input remains unchanged. Formal round 1 must re-review this fix before progressing.
+- Commit: `fix: prevent pre-MD stage outputs from aliasing restart inputs`.
+
 ## Module coverage
 
 All **11 requested module areas** explored and exercised. Real scientific preparation reached **6/10** fixed-order modules; remaining execution/audit/decision behavior used explicit simulations/static fixtures, never real MD.

@@ -147,6 +147,25 @@ def test_protocol_rejects_stage_ids_that_become_shell_syntax(solvation_outputs, 
         )
 
 
+@pytest.mark.parametrize("case", ["initial_restart", "initial_restart_uppercase", "case_alias"])
+def test_protocol_stage_outputs_cannot_alias_input_or_each_other(solvation_outputs, tmp_path, case):
+    manifest, paths = solvation_outputs
+    original = paths["expected_rst7_after_tleap"].read_bytes()
+    protocol = default_pre_md_protocol_config()
+    if case == "case_alias":
+        protocol["stages"][0]["id"] = "custom"
+        protocol["stages"][1]["id"] = "CUSTOM"
+    else:
+        protocol["stages"][0]["id"] = "system_lig_solv" if case == "initial_restart" else "SYSTEM_LIG_SOLV"
+    config = tmp_path / "collision.json"
+    config.write_text(json.dumps(protocol), encoding="utf-8")
+    with pytest.raises(ValueError, match="collid|Duplicate"):
+        prepare_complex_pre_md_equilibration(
+            solvation_manifest_json=manifest, protocol_config_json=config, output_dir=tmp_path / "rendered",
+        )
+    assert paths["expected_rst7_after_tleap"].read_bytes() == original
+
+
 @pytest.mark.parametrize("selection, expected_script", [
     ("all", "run_pre_md.sh"), ("1-8", "run_pre_md_1_8.sh"), ("9", "run_pre_md_9.sh"),
 ])
