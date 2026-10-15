@@ -364,6 +364,14 @@
 - Green: 11 runner cases; full native regression **226 passed, 6 skipped**, one existing warning. Real file checks covered Python argv, Python inline, and WSL Bash.
 - Commit: `fix: substitute command placeholders in a single pass`.
 
+### F43 / P2: existing incomplete runs return success for missing checkpoints
+
+- Red: CLI status/context/resume with run_config present but run_manifest deleted all returned 0 (3 failed cases), including error-shaped context data.
+- Root cause: command configuration loading did not require a valid checkpoint and downstream missing-state messages were treated as ordinary success output.
+- Fix: the shared existing-run CLI boundary requires a loadable checkpoint, using the protected reader. Missing/corrupt checkpoints return 2 through the common error boundary; no state is recreated or overwritten. Completely missing runs retain exit 1.
+- Green: 11 CLI cases; full native regression **229 passed, 6 skipped**, one existing warning.
+- Commit: `fix: reject incomplete existing runs at the CLI boundary`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

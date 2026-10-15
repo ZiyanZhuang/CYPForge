@@ -59,3 +59,15 @@ def test_init_resolves_amberhome_directory_to_setup_filename(tmp_path, monkeypat
     ])
     assert cli.cmd_init(args) == 0
     assert json.loads((root / "run_config.json").read_text(encoding="utf-8"))["amber_sh"] == "/opt/amber custom/amber.sh"
+
+
+@pytest.mark.parametrize("command", ["status", "context", "resume"])
+def test_cli_rejects_existing_run_with_missing_checkpoint(tmp_path, monkeypatch, capsys, command):
+    root = tmp_path / "run"
+    workflow = WorkflowManager(RunConfig("incomplete", str(root), str(tmp_path)))
+    workflow.init_run()
+    workflow.manifest_path.unlink()
+    monkeypatch.setattr(sys, "argv", ["cypforge", command, "incomplete", "--run-root", str(root)])
+    assert cli.main() == 2
+    assert "[ERROR]" in capsys.readouterr().err
+    assert not workflow.manifest_path.exists()
