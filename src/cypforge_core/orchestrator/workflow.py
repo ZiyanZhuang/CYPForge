@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import sys
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -67,6 +69,32 @@ class WorkflowManager:
     @property
     def config_path(self) -> Path:
         return self.run_root / "run_config.json"
+
+    @contextmanager
+    def run_lock(self):
+        """Keep one workflow writer per run; the OS releases locks on exit."""
+        with (self.run_root / ".cypforge.lock").open("a+b") as handle:
+            if sys.platform == "win32":
+                import msvcrt
+                if handle.tell() == 0:
+                    handle.write(b"\0")
+                    handle.flush()
+                handle.seek(0)
+                lock = lambda: msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                unlock = lambda: msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                lock = lambda: fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                unlock = lambda: fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            try:
+                lock()
+            except OSError as exc:
+                raise RuntimeError(f"Another operation is already writing this run: {self.run_root}") from exc
+            try:
+                yield
+            finally:
+                handle.seek(0)
+                unlock()
 
     # init
 

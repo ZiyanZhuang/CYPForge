@@ -59,6 +59,12 @@ class CYPForgeOrchestrator:
 
     def run_until(self, stop_before_skill_id: str | None = None) -> RunManifest:
         """Execute pending modules, optionally stopping before a named module."""
+        if not self.workflow.run_root.exists():
+            self.init()
+        with self.workflow.run_lock():
+            return self._run_until(stop_before_skill_id)
+
+    def _run_until(self, stop_before_skill_id: str | None = None) -> RunManifest:
         manifest = self.workflow.load_manifest()
         if manifest is None:
             manifest = self.init()

@@ -50,6 +50,15 @@
 
 ## Module coverage
 
+### F04 / P1: two controllers can execute the same run concurrently
+
+- Red: two public `run_until` calls overlapped at an external subprocess boundary and both executed environment probes; concurrent-execution test initially failed.
+- Root cause: complete JSON snapshots had no workflow ownership boundary. Atomic replacement alone cannot prevent repeated tool launches or lost state updates.
+- Fix: run-level nonblocking OS file lock (Windows `msvcrt`, POSIX `fcntl`) covers orchestration execution and CLI protonation mutation. Read-only status/context/diagnose remain available. Lock file is retained to avoid inode races; OS ownership is released even on process death.
+- Green: 5 persistence tests passed; full native regression **104 passed, 6 skipped**, one existing warning.
+- Follow-up: verify process-death recovery and cross-process contention on both platforms; inspect prep-only endpoint state before final release.
+- Commit: `fix: serialize workflow execution and protonation writes`.
+
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
 
 ## Smoke and robustness evidence

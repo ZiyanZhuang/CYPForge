@@ -6,6 +6,7 @@ import os
 
 from cypforge_core import cli
 from cypforge_core.orchestrator import RunConfig, WorkflowManager
+from cypforge_core.orchestrator import CYPForgeOrchestrator
 
 
 def test_init_refuses_to_overwrite_existing_run(tmp_path):
@@ -64,3 +65,33 @@ def test_failed_checkpoint_replacement_preserves_last_manifest(tmp_path, monkeyp
     assert {path.name for path in workflow.run_root.iterdir()} == {
         "run_config.json", "run_manifest.json", "logs", "decisions",
     }
+
+
+def test_concurrent_workflow_execution_is_rejected(tmp_path, monkeypatch):
+    from threading import Event
+    from types import SimpleNamespace
+    import cypforge_core.orchestrator.runner as runner_module
+
+    started, finish = Event(), Event()
+    config = RunConfig("owner", str(tmp_path / "run"), str(tmp_path))
+    first = CYPForgeOrchestrator(config)
+    first.init()
+
+    def subprocess_probe(*args, **kwargs):
+        if not started.is_set():
+            started.set()
+            assert finish.wait(5), "test did not release the running subprocess"
+        return SimpleNamespace(returncode=0, stdout="OK", stderr="")
+
+    monkeypatch.setattr(runner_module.subprocess, "run", subprocess_probe)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(first.run_until, "cypforge.core1_prepare_heme_cym")
+        try:
+            assert started.wait(5)
+            with pytest.raises(RuntimeError, match="already.*run|run.*already"):
+                CYPForgeOrchestrator(config).run_until("cypforge.core1_prepare_heme_cym")
+        finally:
+            finish.set()
+            future.result(timeout=5)
+
+    assert first.workflow.load_manifest().modules["cypforge.environment_check"]["status"] == "PASS"

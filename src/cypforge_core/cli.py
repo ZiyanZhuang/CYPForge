@@ -448,6 +448,11 @@ def cmd_protonation_apply(args: argparse.Namespace) -> int:
     config = _load_config(args.run_name, str(run_root))
     if config is None:
         return 1
+    with CYPForgeOrchestrator(config).workflow.run_lock():
+        return _apply_protonation(args, run_root)
+
+
+def _apply_protonation(args: argparse.Namespace, run_root: Path) -> int:
     original_pdb = run_root / "01_heme_only" / "prepared_heme_complex.pdb"
     decision_path = Path(args.decision_json) if args.decision_json else run_root / "protonation_decision.json"
     if args.set_values:
