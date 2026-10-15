@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .heme_mapping_leapin import _write_text
+from .io import is_nonempty_file
 
 
 WATER_PRESETS: dict[str, tuple[str, str]] = {
@@ -266,7 +267,7 @@ def validate_solvation_tleap_outputs(
         "rst7": Path(manifest["output_files"]["expected_rst7_after_tleap"]),
         "pdb": Path(manifest["output_files"]["expected_pdb_after_tleap"]),
     }
-    file_status = {name: path.is_file() for name, path in files.items()}
+    file_status = {name: is_nonempty_file(path) for name, path in files.items()}
     reasons = list(parsed.get("failure_reasons", []))
     final_charge = parsed.get("final_charge")
     expected_ion_count = expected.get("expected_neutralizing_anion_count")
@@ -280,7 +281,7 @@ def validate_solvation_tleap_outputs(
         reasons.append(f"Neutralizing ion count mismatch: expected {expected_ion_count}, observed {parsed.get('neutralizing_ion_required')}")
     for name, exists in file_status.items():
         if not exists:
-            reasons.append(f"Missing generated {name}: {files[name]}")
+            reasons.append(f"Missing or empty generated {name}: {files[name]}")
 
     result = {
         "schema": "cypforge.solvation_ionization_validation.v1",

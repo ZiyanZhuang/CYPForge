@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .heme_mapping_leapin import _write_text
+from .io import is_nonempty_file
 
 
 DEFAULT_RESTRAINED_SOLUTE_HEAVY_MASK = "!:WAT,Cl-,Na+ & !@H="
@@ -291,8 +292,8 @@ def prepare_complex_pre_md_equilibration(
 
     prmtop = Path(source_manifest["output_files"]["expected_prmtop_after_tleap"])
     rst7 = Path(source_manifest["output_files"]["expected_rst7_after_tleap"])
-    if not prmtop.is_file() or not rst7.is_file():
-        raise FileNotFoundError("Solvated prmtop/rst7 are required before rendering pre-MD inputs.")
+    if not is_nonempty_file(prmtop) or not is_nonempty_file(rst7):
+        raise FileNotFoundError("Nonempty solvated prmtop/rst7 are required before rendering pre-MD inputs.")
 
     out_dir.mkdir(parents=True, exist_ok=True)
     config_path = Path(protocol_config_json) if protocol_config_json else out_dir / "pre_md_protocol_config.json"
@@ -482,7 +483,7 @@ def validate_complex_pre_md_run(
         mdout = pre_md_dir / str(observed.get("mdout", ""))
         restart = pre_md_dir / str(observed.get("restart", ""))
         fatal_count = _fatal_keyword_count(mdout)
-        normal_end = bool(observed.get("normal_end"))
+        normal_end = bool(observed.get("normal_end")) and is_nonempty_file(mdout)
         rc = observed.get("exit_code")
         if rc != 0:
             reasons.append(f"Stage {stage_id} exit code is nonzero: {rc}")
@@ -490,23 +491,24 @@ def validate_complex_pre_md_run(
             reasons.append(f"Stage {stage_id} lacks normal-end marker")
         if fatal_count:
             reasons.append(f"Stage {stage_id} mdout contains {fatal_count} fatal keyword(s)")
-        if not restart.is_file():
-            reasons.append(f"Stage {stage_id} restart missing: {restart}")
+        restart_exists = is_nonempty_file(restart)
+        if not restart_exists:
+            reasons.append(f"Stage {stage_id} restart missing or empty: {restart}")
         traj_name = expected.get("trajectory")
         traj_exists = True
         if traj_name:
-            traj_exists = (pre_md_dir / "run" / str(traj_name)).is_file()
+            traj_exists = is_nonempty_file(pre_md_dir / "run" / str(traj_name))
             if not traj_exists:
-                reasons.append(f"Stage {stage_id} trajectory missing: {pre_md_dir / 'run' / str(traj_name)}")
+                reasons.append(f"Stage {stage_id} trajectory missing or empty: {pre_md_dir / 'run' / str(traj_name)}")
         stage_results.append({
             "name": stage_id,
-            "status": "success" if rc == 0 and normal_end and fatal_count == 0 and restart.is_file() and traj_exists else "fail",
+            "status": "success" if rc == 0 and normal_end and fatal_count == 0 and restart_exists and traj_exists else "fail",
             "exit_code": rc,
             "normal_end": normal_end,
             "fatal_keyword_count": fatal_count,
             "mdout": str(mdout),
             "restart": str(restart),
-            "restart_exists": restart.is_file(),
+            "restart_exists": restart_exists,
             "trajectory": str(pre_md_dir / "run" / str(traj_name)) if traj_name else "",
             "trajectory_exists": traj_exists,
         })

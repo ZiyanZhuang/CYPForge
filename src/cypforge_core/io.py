@@ -23,6 +23,13 @@ def sha256_file(path: Path) -> str:
 
 # structured write
 
+def is_nonempty_file(path: Path) -> bool:
+    try:
+        return path.is_file() and path.stat().st_size > 0
+    except OSError:
+        return False
+
+
 def write_json(path: Path, payload: Any) -> None:
     write_text(path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
 

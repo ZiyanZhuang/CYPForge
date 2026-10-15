@@ -140,6 +140,14 @@
 - Green: 25 gate/decision/readiness cases; full native regression **141 passed, 6 skipped**, one existing warning. No new route to production MD.
 - Commit: `fix: publish canonical gate status in decision manifests`.
 
+### F15 / P1: empty scientific artifacts satisfy existence-only checks
+
+- Red: 7 public cases accepted empty solvation topology/coordinates/PDB, rendered pre-MD from an empty topology, or validated empty mdout/restart/trajectory against a success TSV.
+- Root cause: file existence was treated as usable output.
+- Fix: reuse one small file predicate across solvation validation, pre-MD input readiness, and pre-MD output validation to require a nonempty regular file. Failures name missing/empty artifacts. This is a file-integrity gate, not a replacement for chemistry/topology validation.
+- Green: 7 focused cases; full native regression **148 passed, 6 skipped**, one existing warning.
+- Commit: `fix: reject empty solvation and pre-MD artifacts`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
