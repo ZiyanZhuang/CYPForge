@@ -1,4 +1,7 @@
 import json
+import shutil
+import subprocess
+import sys
 
 import pytest
 
@@ -114,3 +117,35 @@ def test_windows_launcher_targets_the_script_rendered_for_selected_stages(solvat
     assert (output / expected_script).is_file()
     launcher = output / "run_pre_md_windows.ps1"
     assert f"bash {expected_script}" in launcher.read_text(encoding="utf-8")
+
+
+def _bash_probe(script, *, parse_only=False):
+    command = ["wsl", "--exec", "bash"] if sys.platform == "win32" else ["bash"]
+    if not shutil.which(command[0]):
+        pytest.skip("Bash/WSL is not available for shell boundary verification")
+    return subprocess.run([*command, "-n" if parse_only else "-s"], input=script.encode("utf-8"), capture_output=True, timeout=15)
+
+
+def test_engine_default_is_literal_data_in_generated_shell(solvation_outputs, tmp_path):
+    manifest, _ = solvation_outputs
+    protocol = default_pre_md_protocol_config()
+    protocol["engine"] = "$(printf INJECTED)"
+    config = tmp_path / "protocol.json"
+    config.write_text(json.dumps(protocol), encoding="utf-8")
+    prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, protocol_config_json=config, output_dir=tmp_path / "rendered")
+    script = (tmp_path / "rendered/run_pre_md.sh").read_text(encoding="utf-8")
+    # Execute only the variable assignment, never an engine or MD command.
+    probe = _bash_probe("unset AMBER_ENGINE\n" + "\n".join(script.splitlines()[:3]) + '\nprintf "%s" "$AMBER_ENGINE"\n')
+    assert probe.returncode == 0
+    assert probe.stdout.decode("utf-8") == protocol["engine"]
+
+
+def test_reference_path_quotes_do_not_break_generated_bash(solvation_outputs, tmp_path):
+    manifest, _ = solvation_outputs
+    protocol = default_pre_md_protocol_config()
+    protocol["stages"][0]["reference"] = "reference with space's.rst7"
+    config = tmp_path / "protocol.json"
+    config.write_text(json.dumps(protocol), encoding="utf-8")
+    prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, protocol_config_json=config, output_dir=tmp_path / "rendered")
+    script = (tmp_path / "rendered/run_pre_md.sh").read_text(encoding="utf-8")
+    assert _bash_probe(script, parse_only=True).returncode == 0

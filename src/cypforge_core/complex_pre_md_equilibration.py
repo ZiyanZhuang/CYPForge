@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import shutil
 from pathlib import Path
 from typing import Any
@@ -674,7 +675,7 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
     lines = [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
-        'AMBER_ENGINE="${AMBER_ENGINE:-' + engine + '}"',
+        'AMBER_ENGINE=${AMBER_ENGINE:-' + shlex.quote(str(engine)) + '}',
         'cd "$(dirname "$0")"',
         "mkdir -p run",
         "date -Is > run/run_pre_md.started_at.txt",
@@ -711,14 +712,14 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
             f"-i mdin/{Path(stage['mdin']).name}",
             f"-o run/{stage['id']}.out",
             "-p system_lig_solv.prmtop",
-            f"-c {stage['input_restart']}",
-            f"-r {stage['output_restart']}",
+            f"-c {shlex.quote(stage['input_restart'])}",
+            f"-r {shlex.quote(stage['output_restart'])}",
             f"-inf run/{stage['id']}.info",
         ]
         if stage["trajectory"]:
             args.append(f"-x run/{stage['trajectory']}")
         if stage["reference_restart"]:
-            args.append(f"-ref {stage['reference_restart']}")
+            args.append(f"-ref {shlex.quote(stage['reference_restart'])}")
         lines.extend(
             [
                 "set +e",

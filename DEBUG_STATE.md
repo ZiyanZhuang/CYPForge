@@ -220,6 +220,14 @@
 - Green: 19 artifact cases; full native and WSL regressions both **175 passed, 6 skipped**, one existing warning. No scripts were executed as MD.
 - Commit: `fix: target the selected pre-MD script from Windows launcher`.
 
+### F25 / P1: generated Bash interpolates engine/reference values as syntax
+
+- Red: an engine value containing `$(printf INJECTED)` executed substitution instead of remaining literal; a quoted reference filename made `bash -n` fail (**2 failed**). Tests ran assignment-only snippets or syntax checks, never an engine.
+- Root cause: unescaped dynamic text was inserted inside Bash expansion/argv expressions.
+- Fix: standard-library shell quoting for the engine default and input/output/reference restart arguments. User-selected scientific parameters and reference policy are unchanged.
+- Green: 2 real Bash boundary cases; full native regression **177 passed, 6 skipped**, one existing warning.
+- Commit: `fix: quote dynamic values in generated pre-MD Bash`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
