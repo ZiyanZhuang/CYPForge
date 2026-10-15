@@ -252,6 +252,14 @@
 - Green: 6 local-knowledge cases; full native regression **186 passed, 6 skipped**, one existing warning. Profile updates remain single-writer operations; no new cross-process merge semantics are introduced.
 - Commit: `fix: commit diagnosis and profile JSON atomically`.
 
+### F29 / P2: resume reports ERROR but exits successfully
+
+- Red: public CLI resume of an ERROR checkpoint printed `[ERROR]` yet returned 0; no engine was invoked.
+- Root cause: execution-command exit handling recognized STOPPED_ON_FAIL but omitted ERROR.
+- Fix: run/prep-only/resume consistently return 2 for either failure status. The rejected checkpoint remains byte-for-byte unchanged.
+- Green: 7 CLI cases; full native regression **187 passed, 6 skipped**, one existing warning.
+- Commit: `fix: return failure for ERROR workflow checkpoints`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

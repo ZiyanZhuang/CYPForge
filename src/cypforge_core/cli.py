@@ -343,7 +343,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     manifest = orch.run()
 
     print(f"\n{orch.status()}")
-    if manifest.workflow_status == "STOPPED_ON_FAIL":
+    if manifest.workflow_status in {"STOPPED_ON_FAIL", "ERROR"}:
         return 2
     if manifest.workflow_status == "PAUSED":
         return 3
@@ -372,7 +372,7 @@ def cmd_prep_only(args: argparse.Namespace) -> int:
         manifest = orch.run_until(stop_before_skill_id="cypforge.core3_run_pre_md")
 
     print(f"\n{orch.status()}")
-    if manifest.workflow_status == "STOPPED_ON_FAIL":
+    if manifest.workflow_status in {"STOPPED_ON_FAIL", "ERROR"}:
         return 2
     if manifest.workflow_status == "PAUSED":
         return 3
@@ -389,7 +389,7 @@ def cmd_resume(args: argparse.Namespace) -> int:
     manifest = orch.resume()
 
     print(f"\n{orch.status()}")
-    if manifest.workflow_status == "STOPPED_ON_FAIL":
+    if manifest.workflow_status in {"STOPPED_ON_FAIL", "ERROR"}:
         return 2
     if manifest.workflow_status == "PAUSED":
         return 3

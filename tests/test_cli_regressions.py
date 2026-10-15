@@ -31,3 +31,17 @@ def test_cli_docs_reports_invalid_database_as_error_exit(tmp_path, monkeypatch, 
     assert cli.main() == 2
     output = capsys.readouterr()
     assert "[ERROR]" in output.out + output.err
+
+
+def test_cli_resume_error_checkpoint_returns_failure_without_execution(tmp_path, monkeypatch, capsys):
+    root = tmp_path / "run"
+    workflow = WorkflowManager(RunConfig("error", str(root), str(tmp_path)))
+    manifest = workflow.init_run()
+    manifest.workflow_status = "ERROR"
+    workflow.save_manifest(manifest)
+    original = workflow.manifest_path.read_bytes()
+    monkeypatch.setattr(sys, "argv", ["cypforge", "resume", "error", "--run-root", str(root)])
+
+    assert cli.main() == 2
+    assert workflow.manifest_path.read_bytes() == original
+    assert "[ERROR]" in capsys.readouterr().out
