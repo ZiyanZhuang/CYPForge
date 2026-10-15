@@ -262,15 +262,18 @@ export AMBER_ENGINE=owned_fake_engine
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows launcher boundary")
-def test_windows_launcher_propagates_script_failure_without_running_md(solvation_outputs, tmp_path):
+@pytest.mark.parametrize("folder, setup_name", [
+    ("launcher test", "amber.sh"), ("launcher's  test 中文", "amber's setup.sh"),
+])
+def test_windows_launcher_propagates_script_failure_without_running_md(solvation_outputs, tmp_path, folder, setup_name):
     powershell = shutil.which("pwsh")
     if not powershell or not shutil.which("wsl"):
         pytest.skip("PowerShell/WSL unavailable")
     manifest, _ = solvation_outputs
-    output = tmp_path / "launcher test"
+    output = tmp_path / folder
     prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, output_dir=output)
     (output / "run_pre_md.sh").write_bytes(b"exit 7\n")
-    setup = tmp_path / "amber.sh"
+    setup = tmp_path / setup_name
     setup.write_bytes(b"true\n")
     completed = subprocess.run(
         [powershell, "-NoProfile", "-File", str(output / "run_pre_md_windows.ps1")],

@@ -779,7 +779,9 @@ def _render_windows_run_script(script_name: str) -> str:
         "$wslPath = (wsl -e wslpath -a \"$here\").Trim()\n"
         "if (-not $env:AMBER_SH -and -not $env:AMBERHOME) { Write-Error 'Set AMBER_SH or AMBERHOME'; exit 1 }\n"
         "$amberSetup = if ($env:AMBER_SH) { $env:AMBER_SH } else { \"$($env:AMBERHOME)/amber.sh\" }\n"
+        "$quotedSetup = \"'\" + $amberSetup.Replace(\"'\", \"'\\''\") + \"'\"\n"
+        "$quotedPath = \"'\" + $wslPath.Replace(\"'\", \"'\\''\") + \"'\"\n"
         "$wslUserArgs = if ($env:WSL_USER) { @('-u', $env:WSL_USER) } else { @() }\n"
-        f"& wsl @wslUserArgs -e bash -lc \"source '$amberSetup' && cd '$wslPath' && bash {script_name}\"\n"
+        f"& wsl @wslUserArgs -e bash -lc \"source $quotedSetup && cd $quotedPath && bash {script_name}\"\n"
         "exit $LASTEXITCODE\n"
     )

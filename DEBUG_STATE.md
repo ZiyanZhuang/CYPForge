@@ -308,6 +308,14 @@
 - Green: 37 artifact cases; full native regression **203 passed, 6 skipped**, one existing warning.
 - Commit: `fix: preserve derived restart dependencies in split pre-MD scripts`.
 
+### F36 / P1: Windows launcher breaks on apostrophes in paths
+
+- Red: real PowerShell→WSL launch with Chinese/repeated-space/apostrophe output directory and `amber's setup.sh` returned 1 before reaching the harmless `exit 7` script.
+- Root cause: setup/directory values were inserted inside unescaped Bash single quotes.
+- Fix: encode both values as Bash single-quoted literals, escaping embedded apostrophes. Existing launcher targets and exit propagation remain intact.
+- Green: 38 artifact cases; full native regression **204 passed, 6 skipped**, one existing warning. Both launcher cases use only a replacement script containing `exit 7`; no MD.
+- Commit: `fix: escape apostrophes in Windows launcher paths`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
