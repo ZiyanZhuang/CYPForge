@@ -63,3 +63,11 @@ def test_pre_md_validation_rejects_empty_outputs_despite_success_table(pre_md_ou
     manifest, paths = pre_md_outputs
     paths[empty].write_bytes(b"")
     assert validate_complex_pre_md_run(pre_md_manifest_json=manifest)["status"] == "fail"
+
+
+def test_pre_md_validation_checks_normal_end_in_actual_mdout(pre_md_outputs):
+    manifest, paths = pre_md_outputs
+    paths["mdout"].write_text("Simulation started but was interrupted\n", encoding="utf-8")
+    result = validate_complex_pre_md_run(pre_md_manifest_json=manifest)
+    assert result["status"] == "fail"
+    assert result["stages"][0]["normal_end"] is False

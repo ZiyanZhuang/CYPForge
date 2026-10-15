@@ -148,6 +148,14 @@
 - Green: 7 focused cases; full native regression **148 passed, 6 skipped**, one existing warning.
 - Commit: `fix: reject empty solvation and pre-MD artifacts`.
 
+### F16 / P1: pre-MD validator trusts a success TSV over interrupted mdout
+
+- Red: a nonempty interrupted mdout plus `normal_end=1` TSV validated success.
+- Root cause: normal-end evidence came only from the mutable stage table.
+- Fix: independently require the same normal-end patterns already enforced by the generated runner (`Total wall time` / `Final Performance Info`) in the actual mdout, in addition to the table flag and existing fatal/error/output checks.
+- Green: 8 artifact cases; full native regression **149 passed, 6 skipped**, one existing warning. No MD executed.
+- Commit: `fix: verify pre-MD completion markers from actual output`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

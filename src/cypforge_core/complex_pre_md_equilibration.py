@@ -483,7 +483,9 @@ def validate_complex_pre_md_run(
         mdout = pre_md_dir / str(observed.get("mdout", ""))
         restart = pre_md_dir / str(observed.get("restart", ""))
         fatal_count = _fatal_keyword_count(mdout)
-        normal_end = bool(observed.get("normal_end")) and is_nonempty_file(mdout)
+        normal_end = bool(observed.get("normal_end")) and is_nonempty_file(mdout) and bool(re.search(
+            r"Total wall time|Final Performance Info", mdout.read_text(encoding="utf-8", errors="replace"),
+        ))
         rc = observed.get("exit_code")
         if rc != 0:
             reasons.append(f"Stage {stage_id} exit code is nonzero: {rc}")
