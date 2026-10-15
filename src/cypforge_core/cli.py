@@ -46,7 +46,7 @@ from .io import read_json, write_json, resolve_amber_sh
 from .orchestrator import CYPForgeOrchestrator, RunConfig
 
 
-VERSION = "1.3.0"
+VERSION = "1.1.0"
 
 
 def _default_runs_dir() -> str:

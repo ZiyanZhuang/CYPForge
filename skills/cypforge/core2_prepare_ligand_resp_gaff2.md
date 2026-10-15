@@ -60,6 +60,11 @@ The supplied MOL2 must describe the same SDF graph and retain the confirmed
 complex heavy-atom names and pose within 0.05 A RMSD. A generic parameter MOL2
 with unrelated coordinates is rejected.
 
+The supplied path also checks finite charges and the explicit MOL2 BOND table
+against the existing SDF mapping. Directly comparable numeric bond orders must
+agree. The manifest reports aromatic/Kekulé equivalence as reviewed input rather
+than claiming to re-perceive aromaticity or independently prove GAFF2 atom types.
+
 New-charge path with H-only pre-RESP cleanup:
 
 ```powershell

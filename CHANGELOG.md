@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.1.0 — independent maintenance release (2026-10-15)
+
+This `release/1.1` line is based on revision `427afd6`, whose package version was
+1.3.0. It is an explicitly separate maintenance line, not a replacement of the
+default branch. The older 1.1.0 source-history entry below is retained; no remote
+1.1.0 tag or GitHub Release existed when this release was prepared.
+
+- Prevent repeated/concurrent initialization from overwriting runs; persist JSON
+  atomically, retry transient Windows/DrvFS conflicts, and exclude concurrent
+  Windows/WSL writers with automatic lock release on process exit.
+- Fail unknown/conflicting/invalid gate data closed; preserve nested context
+  evidence and block progress on unreadable stage manifests or pending decisions.
+- Repair supplied-parameter environment routing and Core 1→2 ligand staging;
+  retain identity-safe mapping and the original PDB pose without QM/RESP.
+- Correct original-chain protonation selectors and PREPARED/PAUSED/resume states.
+- Reject nonfinite charges, invalid explicit MOL2 connectivity and directly
+  conflicting numeric bond orders; retain reviewed aromatic representations.
+- Harden pre-MD artifacts, exact stage coverage, stale-output invalidation,
+  fatal stdout/stderr handling, first-bad-stage stop, split restart dependencies,
+  and Windows launcher target/quoting/exit propagation. No MD ran for this release.
+- Make CLI errors/exits consistent, reject incomplete or mismatched run roots
+  and unsupported nonzero retry counts, and preserve special-character paths.
+- Repair redaction, local docs provenance/transaction cleanup, and diagnosis/profile
+  atomic writes. Native Linux uses Bash directly.
+- Validate real 4EJJ preparation with configured AmberTools through input rendering,
+  plus static topology/coordinate/CYM–Fe checks and owned fake-engine stress tests.
+  See [RELEASE_1.1.md](RELEASE_1.1.md) and [DEBUG_STATE.md](DEBUG_STATE.md) for
+  commands, per-defect red/green evidence, reviews, compatibility, and limits.
+
 ## 1.3.0
 
 - Added the `cypforge module ...` interface for standard Core/gate execution, covering Core 1 heme preparation/LEaP, Core 2 ligand preparation/LEaP, Core 3 protonation, solvation, pre-MD rendering/validation, and global audit operations.
@@ -22,6 +51,6 @@
 - Added canonical Core 2 gate output so pre-RESP warnings remain visible to the outer-shell gate.
 - Added bundled 4EJJ reviewed ligand parameters and regression coverage for the no-QM route.
 
-## 1.1.0
+## 1.1.0 — historical source-history entry
 
 - Initial public release.

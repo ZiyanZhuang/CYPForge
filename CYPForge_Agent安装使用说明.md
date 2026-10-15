@@ -8,9 +8,9 @@ CYPForge 是面向细胞色素 P450 蛋白-血红素-配体复合体系的 Amber
 
 ## 运行环境准备
 
-V1.3 推荐使用标准 Python 包安装入口。在项目根目录执行 `pip install -e ".[qm,test]"` 后，`cypforge` 控制台命令会加入当前环境的 `PATH`。用户应优先使用 `cypforge init`、`cypforge prep-only`、`cypforge run`、`cypforge status`、`cypforge context` 以及 `cypforge module ...`；`cypforge.cmd` 和 `scripts/cypforge_run.py` 仅作为旧版本兼容入口保留。
+本分支为独立的 `release/1.1` 维护线，包版本 1.1.0，来源为报告版本 1.3.0 的提交 `427afd6`，不替代默认分支历史。推荐使用标准 Python 包安装入口。在项目根目录执行 `pip install -e ".[qm,test]"` 后，`cypforge` 控制台命令会加入当前环境的 `PATH`。用户应优先使用 `cypforge init`、`cypforge prep-only`、`cypforge run`、`cypforge status`、`cypforge context` 以及 `cypforge module ...`；`cypforge.cmd` 和 `scripts/cypforge_run.py` 仅作为旧版本兼容入口保留。完整验证与限制见 [RELEASE_1.1.md](RELEASE_1.1.md)。
 
-除 Python 环境外，CYPForge 的科学计算部分依赖 Amber/AmberTools 工具链。代码逻辑显示，Windows 环境下 Amber 命令通过 WSL 调用，并要求能够在 WSL 中访问 `tleap`、`pmemd.cuda`、`cpptraj`、`antechamber` 和 `parmchk2`。用户需要提供 Amber 初始化脚本路径，通常通过 `AMBER_SH` 环境变量或初始化命令中的 `--amber-sh` 参数传入。若进行 Core 2 的配体 RESP/ESP 电荷拟合，还需要提供 Multiwfn 可执行文件路径，可通过 `MULTIWFN_BIN` 环境变量或 `--multiwfn-bin` 参数指定。若这些关键程序不可用，agent 应在 `environment_check` 阶段停止，而不应继续执行后续化学步骤。
+除 Python 环境外，CYPForge 的科学计算部分依赖 Amber/AmberTools 工具链。Windows 环境下 Amber 命令通过 WSL 调用，POSIX 环境直接使用 Bash。常规新参数拟合路径需要 `tleap`、`pmemd.cuda`、`cpptraj`、`antechamber` 和 `parmchk2`；同时提供已审核 MOL2/frcmod 的路径跳过 QM/ESP/RESP 及未使用的 antechamber/parmchk2 探测。用户通过 `AMBER_SH` 或 `--amber-sh` 提供精确的 WSL/POSIX 初始化文件名；也可通过 `AMBERHOME` 提供目录，程序补上 `/amber.sh`。新电荷拟合还需要通过 `MULTIWFN_BIN` 或 `--multiwfn-bin` 指定 Multiwfn。所选路径的必要工具不可用时，agent 应停止。
 
 在 Windows PowerShell 中，一个典型的环境准备方式如下：
 

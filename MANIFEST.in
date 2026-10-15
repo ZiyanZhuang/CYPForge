@@ -1,6 +1,8 @@
 include LICENSE
 include README.md
 include CHANGELOG.md
+include RELEASE_1.1.md
+include DEBUG_STATE.md
 include pyproject.toml
 recursive-include src/cypforge/data *
 recursive-include src/cypforge_core/_qm *.py

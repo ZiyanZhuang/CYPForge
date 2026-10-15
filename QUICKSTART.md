@@ -1,5 +1,8 @@
 # CYPForge Quick Start
 
+This document describes the independent `release/1.1` maintenance branch
+(package 1.1.0, based on source 1.3.0). See [release validation](RELEASE_1.1.md).
+
 This is a single-page, runnable walkthrough that takes you from a fresh clone
 to a rendered agent prompt for the bundled 4EJJ benchmark case. It is the
 fastest way to verify your local CYPForge + Amber + WSL + Multiwfn environment.
@@ -13,7 +16,7 @@ Subsequent no-QM checks are normally faster.
 
 | Component | Purpose | How to verify |
 | --- | --- | --- |
-| Python ≥ 3.9 (3.9 / 3.10 / 3.11 / 3.12 tested) | Run the orchestrator and the prompt renderer | `python --version` |
+| Python ≥ 3.9 (this release checked on 3.12) | Run the orchestrator and the prompt renderer | `python --version` |
 | WSL (Windows hosts) | Run Amber / AmberTools / pmemd.cuda inside a Linux env | `wsl --status` |
 | Amber / AmberTools (in WSL) | Provides `tleap`, `pmemd.cuda`, `cpptraj`, `antechamber`, `parmchk2` | `wsl -- bash -lc 'source ~/amber*/amber.sh && which tleap'` |
 | Multiwfn (in WSL, *no-GUI* build) | RESP/ESP fitting in Core 2 (optional if you skip ligand parameterization) | `wsl -- bash -lc 'ls ~/Multiwfn*/Multiwfn_noGUI'` |
@@ -28,7 +31,7 @@ Subsequent no-QM checks are normally faster.
 
 ```powershell
 # PowerShell
-git clone https://github.com/ZiyanZhuang/CYPForge.git
+git clone --branch release/1.1 https://github.com/ZiyanZhuang/CYPForge.git
 cd CYPForge
 pip install -e ".[test]"
 # Add the qm and docs extras only when those functions are required:
@@ -39,7 +42,7 @@ After install, the `cypforge` console script is on your `PATH`:
 
 ```powershell
 cypforge --version
-# cypforge v1.3.0  (CYPForge 1.3.0)
+# cypforge v1.1.0  (CYPForge 1.1.0)
 ```
 
 Run the test suite to confirm the install:
@@ -71,6 +74,17 @@ $env:MULTIWFN_BIN  = "/home/<your-wsl-user>/Multiwfn_*/Multiwfn_noGUI"
 | `MULTIWFN_BIN` | none — required for Core 2 RESP | always when fitting ligand charges |
 | `CYPFORGE_RUNS_DIR` | `C:\cypforge_runs` (Win) / `~/cypforge_runs` (POSIX) | when you want runs on a non-default drive |
 | `PYTHONPATH` | none | only when running scripts without `pip install -e .` |
+
+`AMBER_SH` is an exact WSL/POSIX file path, including a custom setup filename.
+Alternatively set `AMBERHOME` to the Amber directory; CYPForge appends `/amber.sh`.
+The reviewed supplied-parameter route does not need Multiwfn, antechamber, or
+parmchk2 to refit parameters. It still checks supplied chemistry/pose contracts
+and requires the remaining configured preparation tools.
+
+Use a new directory for `init`. After explicit protonation review, `prep-only`
+finishes at `PREPARED` (exit 0) without MD; a review pause exits 3, failure exits 2.
+Keep using `prep-only` for this endpoint because `resume` can launch MD. Nonzero
+`--max-retries` is unsupported; inspect failures before manual resume.
 
 ---
 

@@ -6,20 +6,22 @@
 - Repository: `https://github.com/ZiyanZhuang/CYPForge`; baseline `427afd606144d388d92a684082c29cc514018154`.
 - Working branch: `release/1.1`; never merge or push to the default branch, force-push, or overwrite a tag/release.
 - Target: `v1.1.0` (use `v1.1.1` only if `v1.1.0` already exists).
-- Current source reports 1.3.0; the requested 1.1 line is an independent maintenance release, not a claim to supersede 1.3.0.
+- The baseline source reported 1.3.0; package/CLI/docs are now aligned at 1.1.0 for the requested independent maintenance line. This does not claim to supersede 1.3.0.
 - No software installation, dependency additions, scientific-rule/chemistry changes, license changes, or long MD.
 - Scientific smoke endpoint: `core3_render_pre_md`; never launch the 20 ns free NPT stage.
 - Regression seams authorized by the task: public CLI, WorkflowManager/ModuleRunner/GateChecker, manifest outputs, ligand/protonation public module APIs, and local docs/diagnosis APIs. One reproduced defect at a time; red test before fix; focused plus full regression; independent commit per defect.
 
-## Baseline and environment (in progress)
+## Baseline and environment
 
-- Windows default Python: 3.13.15; `python -B -m pytest tests -q` exits 1 (`No module named pytest`). Existing alternative runtimes are being checked; no installation attempted.
-- `cypforge --version`: command absent from PATH. Source entry point will be used with process-local `PYTHONPATH`.
+- Windows default Python: 3.13.15; `python -B -m pytest tests -q` exited 1 (`No module named pytest`). Selected existing codex-dev Python 3.12.14/numpy 2.5.2/pytest 9.1.1. Initial baseline on existing Python 3.14.6: **97 passed, 6 skipped**, one existing legacy-wrapper warning. No installation attempted.
+- Native `cypforge --version` was absent from PATH. The source entry point uses process-local `PYTHONPATH`; its version and `cypforge.__version__` now both report **1.1.0**. An unrelated existing WSL installation reports 1.3.0 and was not changed.
 - Process variables `AMBER_SH`, `AMBERHOME`, `MULTIWFN_BIN`, `CYPFORGE_RUNS_DIR`: unset.
-- WSL available: Ubuntu-24.04, default user `zhuang`; found Amber setup under `/home/zhuang/amber26-local/prefix/amber26-pmemd-cuda129-sm120/amber.sh`; tools not yet verified after sourcing.
+- WSL available: Ubuntu-24.04, default user `zhuang`; existing Python 3.12.3/numpy 2.5.2/pytest 9.1.1. Amber setup under `/home/zhuang/amber26-local/prefix/amber26-pmemd-cuda129-sm120/amber.sh`; AmberTools prefix `ambertools26-ff19sb-lite` provides tleap/cpptraj V7.6.2. An isolated task-local setup file sources that environment and extends its PATH without modifying installed software.
+- Multiwfn, antechamber and parmchk2 are absent; no-QM reviewed supplied parameters exercise the valid route that omits those unused fitting probes. pmemd executable availability was checked, never executed as MD. WSL emits an existing localhost-proxy warning; command exit and saved logs remain inspectable.
 - Git remote tags: only `v1.2.0`; `release/1.1` absent remotely at baseline.
-- `gh release list`: blocked by missing gh authentication. Credential-helper capability will be checked without printing credentials.
-- Native run-directory writability and complete pytest baseline: pending.
+- `gh release list` initially reported missing authentication. A later read-only live check succeeded using the existing context, with repository push/admin permission metadata; no login or credential extraction was performed. Authenticated tag/Release GETs for v1.1.0/v1.1.1 all returned 404. Unauthenticated API was rate-limited (403), never treated as an existence check.
+- Task-owned run directory outside the repository is writable. Working source has no user modifications. Git push dry-run succeeded; actual branch/tag/Release publication remains gated on reviews.
+- Current full regression: **244 passed, 6 skipped** native; **241 passed, 9 skipped** WSL. Both have one existing warning. WSL's three additional skips are two native Windows launchers and one native Windows/WSL locking test.
 
 ## Findings and fixes
 
@@ -414,11 +416,34 @@
 
 ## Module coverage
 
-Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
+All **11 requested module areas** explored and exercised. Real scientific preparation reached **6/10** fixed-order modules; remaining execution/audit/decision behavior used explicit simulations/static fixtures, never real MD.
+
+| Area | Evidence |
+| --- | --- |
+| Ten-stage order, gates, WARN switch | 50 simulated state/stop/resume cases; 4 unknown/conflicting gate controls; 14 additional public CLI probes |
+| Solvation/ionization | Real tleap render/run plus independent manifest gate and static prmtop/rst7/cpptraj checks |
+| Pre-MD rendering | Real 4EJJ nine input stages; custom IDs, split ranges, quoting and manifest dependencies |
+| Pre-MD run/recovery | 38 owned fake-engine observations; first-failure stop, rerun recovery, stale/empty/missing/substituted artifacts and console logs |
+| CLI | Init/help-advanced/status/context/prep-only/resume exit 0/1/2/3; invalid JSON/root/schema, missing checkpoint and unsupported retries |
+| Environment/WSL | Real sourced setup probes in special-character paths; missing/wrong env controls; route-aware fitting probes; simulated native Linux backend |
+| Ligand contracts | Real 4EJJ supplied path; finite charge, SDF/formal charge, names, pose, actual explicit connectivity and comparable numeric orders |
+| Protonation | User-confirmed benchmark decision; original blank-chain selectors, idempotent states, evidence-shape negative cases |
+| Diagnosis/context | Redaction, nested chemical evidence, corrupted stage evidence, action gating, concurrent exports |
+| SQLite FTS5 | Real local indexing/query, changed provenance, rollback on failure and deterministic close/unlink |
+| Concurrency/atomicity | Two-OS save/read pressure, ten-process init races, four lock directions, owned holder crash recovery, interrupted replacement |
 
 ## Smoke and robustness evidence
 
-Pending. Local raw logs and run artifacts will remain outside the tracked source tree; this file records portable commands and measured summaries.
+Portable no-MD commands and expected review boundary are reproduced in [RELEASE_1.1.md](RELEASE_1.1.md). Native commands used the existing Python 3.12 executable with process-local PYTHONPATH/PYTEST_DISABLE_PLUGIN_AUTOLOAD; WSL commands used the existing cypforge-gpu virtualenv with this checkout's src path.
+
+- First real smoke `quick_4ejj_env_probe`: init 0; after F09/F10 environment/Core1/Core2 PASS and prep-only 3; recommend 0; user explicitly confirmed the repository's 4EJJ choices; apply 0; preparation/render 0. After F12 status is PREPARED with six PASS and four PENDING.
+- Special-path smoke `final_4ejj  中文's {ligand_resname}`: init 0, prep-only 3, recommend 0, confirmed apply 0, prep-only/status/context/diagnose all 0. `../debug_artifacts/final_smoke_20261015_183648/commands.json` and summary.json record argv/exits; logs and generated run files remain outside tracked source. Source HEAD recorded at completion: 66114f4; later CLI-only hardening and release-version metadata are separately tested.
+- Independent real topology calculation: 71,698 atoms, 21,833 residues, 21,360 waters, 6 Cl−, net charge about -1.84e-7 e. CYM410 SG–HEM466 FE is an explicit topology bond, distance 2.52705 A (RK 39.00, REQ 2.565). Matched prepared-complex heavy atoms: 3,817; whole-complex rigid-fit RMSD 5.01e-8 A, ligand heavy RMSD 5.21e-8 A. cpptraj reads topology/restart and checks one static frame with zero problems. LEaP rigid reorientation was accounted for; raw unaligned coordinate distance was not misreported as pose drift.
+- Both native and WSL: 600 saves + 200 status + 200 diagnosis with **0 protected-API errors** after F27/F28, repeated after F30. Independent real CLI: 24/24 calls exit 0 with 1,800/1,800 concurrent saves successful.
+- Each OS's ten-process init race yielded exactly one owner; six repeated init attempts preserved config/checkpoint bytes; five same-OS lock contenders were rejected. Native/native, WSL/WSL, native/WSL and WSL/native all reject simultaneous writers and recover when an owned holder exits inside its lock using os._exit(73), bypassing finally. All child processes were reaped.
+- Raw filesystem readers still observed transient permission/DrvFS errors, but no partial JSON after the atomic report fix. The protected API retries are bounded, not an unlimited promise for persistently held handles or network storage.
+- Fake-engine controls: nine-stage success; stage-4 exit17 stops and rerun recovers; stale no-op rerun fails; substituted stage path fails; custom run directory and renamed stage8→split9 work; all documented fatal diagnostics in mdout/stdout/stderr and empty outputs stop before later stages. Empty console streams are valid, absent declared console logs fail. All 38 observations matched expectations.
+- Evidence handoffs: `../audit_stress.txt`, `../audit_premd_after_e99195a.txt`, `../audit_science_contract.txt`, `../audit_controlflow.txt`, `../audit_release_access.txt`, with task-owned probes/results under `../debug_artifacts/`. These are local artifacts, not installed software or uploaded raw MD/force-field outputs.
 
 ## Independent reviews
 
@@ -428,6 +453,8 @@ Pending. Local raw logs and run artifacts will remain outside the tracked source
 
 ## Open limitations and release state
 
-- Missing default-runtime pytest and gh session are environment findings, not yet final blockers.
-- No scientific or production-readiness claim is made by unit tests or no-MD smoke.
+- Default-runtime pytest is absent; existing tested runtimes were used instead. gh authentication is currently available and must be rechecked at publication.
+- Aromatic/Kekulé equivalence and GAFF2 per-atom typing remain reviewed scientific input; only explicit comparable numeric bond conflicts were added. No aromatic algorithm, chemical mapping, force-field or protocol parameter was changed.
+- No QM fit, real pre-MD/20 ns NPT/production MD or production-readiness claim is made. Optional external fixtures, network filesystems, and Python 3.9–3.11 were not revalidated. Native Linux backend selection is simulated; real Linux execution was tested inside WSL.
+- Atomicity is per file, not a transaction across all stage files. Bounded retries may still reject a persistently held file while preserving its prior committed bytes. Copied/moved runs need explicit metadata/input reconciliation; nonzero automatic retries are rejected. Re-render old pre-MD scripts for new gates; deliberate selected-stage reruns overwrite prior stage outputs as already implied by -O.
 - Branch/tag/release publication: pending.

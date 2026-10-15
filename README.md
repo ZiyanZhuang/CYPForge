@@ -6,10 +6,15 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/python-%E2%89%A53.9-blue" alt="Python 3.9+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20WSL%20%7C%20Linux-lightgrey" alt="Platform">
-  <img src="https://img.shields.io/badge/version-1.3.0-brightgreen" alt="Version 1.3.0">
+  <img src="https://img.shields.io/badge/version-1.1.0-brightgreen" alt="Version 1.1.0">
 </p>
 
 # CYPForge
+
+This is the independent **1.1 maintenance line** on `release/1.1`, derived from
+source revision `427afd6` (which reported 1.3.0). It does not replace the default
+branch or its version history. See [release evidence and compatibility](RELEASE_1.1.md)
+and the complete [debugging ledger](DEBUG_STATE.md).
 
 CYPForge prepares CYP450 protein–heme–ligand systems for Amber molecular dynamics. Feed it a complex PDB and a ligand SDF, and it runs heme/axial-cysteine parameterization, ligand RESP/GAFF2 parameterization, protonation, solvation, ionization, and a 9-stage pre-MD equilibration that finishes with 20 ns of free NPT. Every stage emits a JSON manifest and a hard `PASS` / `WARN` / `FAIL` gate; the workflow stops on `FAIL` and pauses on `WARN` (unless `--auto-accept-warn` is set at init).
 
@@ -32,7 +37,7 @@ Use an agent to verify an existing environment and render the bundled benchmark.
 ### Codex CLI
 
 ```powershell
-git clone https://github.com/ZiyanZhuang/CYPForge.git
+git clone --branch release/1.1 https://github.com/ZiyanZhuang/CYPForge.git
 cd CYPForge
 codex
 ```
@@ -44,7 +49,7 @@ Then paste:
 ### Claude Code
 
 ```powershell
-git clone https://github.com/ZiyanZhuang/CYPForge.git
+git clone --branch release/1.1 https://github.com/ZiyanZhuang/CYPForge.git
 cd CYPForge
 claude
 ```
@@ -60,12 +65,12 @@ Ready-to-paste prompts (install / config / benchmark run) live in [`QUICKSTART.m
 Requirements: Python ≥ 3.9, WSL with Amber/AmberTools on Windows, Multiwfn (no-GUI build) for Core 2 RESP.
 
 ```powershell
-git clone https://github.com/ZiyanZhuang/CYPForge.git
+git clone --branch release/1.1 https://github.com/ZiyanZhuang/CYPForge.git
 cd CYPForge
 pip install -e ".[qm,test]"
 
 # sanity check
-cypforge --version                       # cypforge v1.3.0
+cypforge --version                       # cypforge v1.1.0
 python -B -m pytest tests -q             # external-data tests may be skipped
 ```
 
@@ -197,6 +202,30 @@ Ten stages, fixed order, enforced by `skills/cypforge/skills_manifest.json` and 
 - Ligand atom mapping must be identity-safe; never assume PDB / SDF / MOL2 row order is equivalent.
 - A `tleap` zero exit does not prove correctness. Solvation, pre-MD, and global audit outputs are independently gated by their manifests.
 - Raw run folders keep local paths and command lines for reproducibility. Use `cypforge diagnose` before sharing run records because it redacts local paths and secret-like values.
+
+## Run-state and supplied-parameter compatibility
+
+- `init` requires a new run directory. Existing directories, including empty ones,
+  are rejected; use `prep-only` or reviewed `resume` for an existing run.
+- One writer owns a run at a time, including Windows/WSL controllers sharing a
+  local NTFS/DrvFS directory. File replacement handles transient reader conflicts.
+  Network filesystems have not been validated.
+- Config, checkpoint, and requested run roots must agree. Copied/moved runs need
+  deliberate reconciliation of their metadata and absolute input paths.
+- Execution exits: 0 for success/PREPARED, 1 for a missing run, 2 for failure or
+  invalid state, 3 for a review pause. `--max-retries` supports only 0; inspect a
+  failure before manual resume. `resume` can launch MD, so use `prep-only` for a
+  no-MD endpoint.
+- `AMBER_SH`/`--amber-sh` is an exact WSL/POSIX setup filename; `AMBERHOME` is a
+  directory and receives `/amber.sh`. The setup filename need not be `amber.sh`.
+- Reviewed supplied MOL2/frcmod skips QM/RESP and the unused antechamber/parmchk2
+  probes. Finite charges, explicit bond connectivity and comparable numeric bond
+  orders must match the mapped SDF contract. Aromatic/Kekulé equivalence and GAFF2
+  atom typing still require reviewed parameters; no aromatic perception is added.
+- Newly rendered pre-MD scripts invalidate selected stage outputs before rerun,
+  capture both console streams, and stop on fatal diagnostics or missing/empty
+  required outputs. Re-render old scripts to receive these checks. No generated
+  script or unit-test result proves equilibration or production readiness.
 
 ---
 
