@@ -80,6 +80,31 @@ def test_pre_md_validation_checks_normal_end_in_actual_mdout(pre_md_outputs):
     assert result["stages"][0]["normal_end"] is False
 
 
+@pytest.mark.parametrize("substitute", ["mdout", "restart"])
+def test_pre_md_table_cannot_substitute_another_artifact(pre_md_outputs, substitute):
+    manifest, paths = pre_md_outputs
+    original = paths[substitute]
+    replacement = original.with_name("other_stage" + original.suffix)
+    original.rename(replacement)
+    table = manifest.parent / "run/stage_status.tsv"
+    table.write_text(table.read_text(encoding="utf-8").replace(original.name, replacement.name), encoding="utf-8")
+    result = validate_complex_pre_md_run(pre_md_manifest_json=manifest)
+    assert result["status"] == "fail"
+    assert result["stages"][0]["status"] == "fail"
+
+
+def test_pre_md_validation_respects_declared_run_directory(pre_md_outputs):
+    manifest, _ = pre_md_outputs
+    custom = manifest.parent / "custom_run"
+    (manifest.parent / "run").rename(custom)
+    table = custom / "stage_status.tsv"
+    table.write_text(table.read_text(encoding="utf-8").replace("run/", "custom_run/"), encoding="utf-8")
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["output_files"]["run_dir"] = str(custom)
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+    assert validate_complex_pre_md_run(pre_md_manifest_json=manifest)["status"] == "success"
+
+
 @pytest.mark.parametrize("case", ["zero", "empty_active", "duplicate", "unexpected"])
 def test_pre_md_stage_table_must_match_nonempty_active_stage_list(pre_md_outputs, case):
     manifest, _ = pre_md_outputs

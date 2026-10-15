@@ -276,6 +276,14 @@
 - Green: 23 artifact cases; full native regression **189 passed, 6 skipped**, one existing warning. Only shell builtins/fake processes executed; no MD.
 - Commit: `fix: invalidate stale pre-MD outputs before rerunning stages`.
 
+### F32 / P1: pre-MD validation trusts substituted artifact paths
+
+- Red: changing a stage's TSV mdout/restart to another valid file, then removing its real artifact, still returned success (2 cases). A declared custom run directory also falsely failed trajectory lookup (1 case).
+- Root cause: validation trusted table paths instead of matching declared stage identity, and separately hard-coded the trajectory directory.
+- Fix: compare table paths to each expected stage's canonical mdout/restart, validate those expected files, and resolve trajectories through the declared run directory. Identity mismatch is a stage and overall failure.
+- Green: 26 artifact cases; full native regression **192 passed, 6 skipped**, one existing warning. No simulation executed.
+- Commit: `fix: validate pre-MD artifacts against declared stage identity`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

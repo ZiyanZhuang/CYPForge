@@ -492,8 +492,14 @@ def validate_complex_pre_md_run(
             })
             reasons.append(f"Missing stage status row: {stage_id}")
             continue
-        mdout = pre_md_dir / str(observed.get("mdout", ""))
-        restart = pre_md_dir / str(observed.get("restart", ""))
+        mdout = run_dir / f"{stage_id}.out"
+        restart = pre_md_dir / str(expected.get("output_restart") or f"{stage_id}.rst7")
+        artifact_identity_matches = (
+            (pre_md_dir / str(observed.get("mdout", ""))).resolve() == mdout.resolve()
+            and (pre_md_dir / str(observed.get("restart", ""))).resolve() == restart.resolve()
+        )
+        if not artifact_identity_matches:
+            reasons.append(f"Stage {stage_id} status paths do not match its declared artifacts")
         fatal_count = _fatal_keyword_count(mdout)
         normal_end = bool(observed.get("normal_end")) and is_nonempty_file(mdout) and bool(re.search(
             r"Total wall time|Final Performance Info", mdout.read_text(encoding="utf-8", errors="replace"),
@@ -511,19 +517,20 @@ def validate_complex_pre_md_run(
         traj_name = expected.get("trajectory")
         traj_exists = True
         if traj_name:
-            traj_exists = is_nonempty_file(pre_md_dir / "run" / str(traj_name))
+            traj_exists = is_nonempty_file(run_dir / str(traj_name))
             if not traj_exists:
-                reasons.append(f"Stage {stage_id} trajectory missing or empty: {pre_md_dir / 'run' / str(traj_name)}")
+                reasons.append(f"Stage {stage_id} trajectory missing or empty: {run_dir / str(traj_name)}")
         stage_results.append({
             "name": stage_id,
-            "status": "success" if rc == 0 and normal_end and fatal_count == 0 and restart_exists and traj_exists else "fail",
+            "status": "success" if artifact_identity_matches and rc == 0 and normal_end and fatal_count == 0 and restart_exists and traj_exists else "fail",
+            "artifact_identity_matches": artifact_identity_matches,
             "exit_code": rc,
             "normal_end": normal_end,
             "fatal_keyword_count": fatal_count,
             "mdout": str(mdout),
             "restart": str(restart),
             "restart_exists": restart_exists,
-            "trajectory": str(pre_md_dir / "run" / str(traj_name)) if traj_name else "",
+            "trajectory": str(run_dir / str(traj_name)) if traj_name else "",
             "trajectory_exists": traj_exists,
         })
 
