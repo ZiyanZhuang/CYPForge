@@ -48,8 +48,6 @@
 - Limit: file-level atomicity does not serialize two independent workflow writers or make config+manifest a cross-file transaction. Concurrent workflow ownership is checked next.
 - Commit: `fix: atomically persist run state and generated manifests`.
 
-## Module coverage
-
 ### F04 / P1: two controllers can execute the same run concurrently
 
 - Red: two public `run_until` calls overlapped at an external subprocess boundary and both executed environment probes; concurrent-execution test initially failed.
@@ -58,6 +56,17 @@
 - Green: 5 persistence tests passed; full native regression **104 passed, 6 skipped**, one existing warning.
 - Follow-up: verify process-death recovery and cross-process contention on both platforms; inspect prep-only endpoint state before final release.
 - Commit: `fix: serialize workflow execution and protonation writes`.
+
+### F05 / P1: shareable diagnosis leaks credential variants and path fragments
+
+- Independent audit and public API red test used synthetic credentials only. Initial report exposed `api-key`, `Authorization: Bearer`, and a Windows path suffix after the first space; arbitrary POSIX `/srv` paths were also exposed. Expanded red case covered camel-case keys and quoted secrets containing spaces.
+- Root cause: inconsistent key normalization, no authorization handling, whitespace-terminated path patterns, and host-dependent Windows basename parsing.
+- Fix: normalized secret-key matching; quoted/unquoted credential and authorization redaction; conservative full-path redaction (including spaced/UNC paths); host-independent basename extraction. Raw run records remain local and unchanged.
+- Green: 3 diagnosis tests passed; full native regression **105 passed, 6 skipped**, one existing warning.
+- Limit: diagnostic output intentionally removes trailing path-containing context conservatively; this is a focused redaction repair, not a guarantee that arbitrary unknown secret formats can be recognized.
+- Commit: `fix: redact credentials and complete paths from diagnoses`.
+
+## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
 

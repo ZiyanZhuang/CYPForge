@@ -8,7 +8,7 @@ import shutil
 import sqlite3
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Iterable
 
 
@@ -248,29 +248,34 @@ def build_run_diagnosis(run_root: str | Path, output: str | Path | None = None) 
             if source:
                 redacted = redacted.replace(source, replacement)
         redacted = re.sub(
-            r"(?i)\b(password|secret|token|api[_-]?key|access[_-]?key)\s*[:=]\s*[^\s,;]+",
+            r'''(?i)\b(password|secret|token|api[_-]?key|access[_-]?key)\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)''',
             lambda match: f"{match.group(1)}=<REDACTED>",
             redacted,
         )
-        redacted = re.sub(r"(?i)\b[A-Z]:[\\/][^\s\"'<>|]+", "<LOCAL_PATH>", redacted)
         redacted = re.sub(
-            r"(?<![:\w])/(?:home|Users|data|mnt|opt|tmp|var|private)/[^\s\"'<>|]+",
+            r'''(?i)\b(authorization\s*[:=]\s*(?:(?:bearer|basic)\s+)?|(?:bearer|basic)\s+)(?:"[^"]*"|'[^']*'|[^\s,;]+)''',
+            lambda match: f"{match.group(1)}<REDACTED>",
+            redacted,
+        )
+        redacted = re.sub(r"(?i)(?:\b[A-Z]:[\\/]|\\\\)[^\r\n\"'<>|;]+", "<LOCAL_PATH>", redacted)
+        redacted = re.sub(
+            r"(?<![:\w])/(?!/)[^\s/]+/[^\r\n\"'<>|;]+",
             "<LOCAL_PATH>",
             redacted,
         )
         return redacted
 
     def redact_object(value: Any, key: str = "") -> Any:
-        key_lower = key.lower()
-        if any(part in key_lower for part in ("password", "secret", "token", "api_key", "access_key", "private_key")):
+        key_lower = re.sub(r"[-_\s]", "", key.lower())
+        if any(part in key_lower for part in ("password", "secret", "token", "apikey", "accesskey", "privatekey", "authorization")):
             return "<REDACTED>"
         if isinstance(value, dict):
             return {str(child_key): redact_object(child_value, str(child_key)) for child_key, child_value in value.items()}
         if isinstance(value, list):
             return [redact_object(item, key) for item in value]
         if isinstance(value, str):
-            if any(part in key_lower for part in ("path", "root", "pdb", "sdf", "mol2", "frcmod", "bin", "amber_sh")):
-                return Path(value).name if value else value
+            if any(part in key_lower for part in ("path", "root", "pdb", "sdf", "mol2", "frcmod", "bin", "ambersh")):
+                return PureWindowsPath(value).name if value else value
             return redact_text(value)
         return value
 
