@@ -4,6 +4,7 @@ import pytest
 
 from cypforge_core import prepare_complex_pre_md_equilibration, validate_solvation_tleap_outputs
 from cypforge_core.complex_pre_md_equilibration import validate_complex_pre_md_run
+from cypforge_core.complex_pre_md_equilibration import default_pre_md_protocol_config
 
 
 @pytest.fixture
@@ -88,3 +89,16 @@ def test_pre_md_stage_table_must_match_nonempty_active_stage_list(pre_md_outputs
         table.write_text(text + extra + "\n", encoding="utf-8")
     manifest.write_text(json.dumps(data), encoding="utf-8")
     assert validate_complex_pre_md_run(pre_md_manifest_json=manifest)["status"] == "fail"
+
+
+@pytest.mark.parametrize("stage_id", ["01_min's", "01_min;echo", "01_min\nnext", "$(printfX)"])
+def test_protocol_rejects_stage_ids_that_become_shell_syntax(solvation_outputs, tmp_path, stage_id):
+    manifest, _ = solvation_outputs
+    protocol = default_pre_md_protocol_config()
+    protocol["stages"][0]["id"] = stage_id
+    path = tmp_path / "protocol.json"
+    path.write_text(json.dumps(protocol), encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid stage id"):
+        prepare_complex_pre_md_equilibration(
+            solvation_manifest_json=manifest, protocol_config_json=path, output_dir=tmp_path / "rendered",
+        )

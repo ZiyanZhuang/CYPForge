@@ -164,6 +164,14 @@
 - Green: 12 artifact cases; full native regression **153 passed, 6 skipped**, one existing warning.
 - Commit: `fix: enforce complete and unique pre-MD stage evidence`.
 
+### F18 / P1: custom stage IDs produce broken or executable shell syntax
+
+- Red: four public render cases accepted apostrophe, semicolon, command substitution, or newline in stage IDs (newline failed later with an OS error instead of contract validation).
+- Root cause: the filename-character blacklist omitted characters interpreted by the generated Bash/printf statements.
+- Fix: validate stage IDs as a leading ASCII alphanumeric followed by ASCII alphanumeric, underscore, dot, or hyphen. All bundled nine IDs remain unchanged; unsafe/custom Unicode IDs now receive a clear ValueError before scripts are generated. Protocol scientific parameters are unchanged.
+- Green: 16 artifact cases; full native regression **157 passed, 6 skipped**, one existing warning.
+- Commit: `fix: validate stage identifiers before shell generation`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

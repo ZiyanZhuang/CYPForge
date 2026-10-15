@@ -583,7 +583,7 @@ def _validate_protocol_config(config: dict[str, Any]) -> dict[str, Any]:
 
 
 def _safe_stage_id(stage_id: str) -> str:
-    if not stage_id or any(ch in stage_id for ch in "\\/:*?\"<>| "):
+    if not isinstance(stage_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", stage_id):
         raise ValueError(f"Invalid stage id: {stage_id!r}")
     return stage_id
 
