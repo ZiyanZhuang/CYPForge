@@ -38,3 +38,25 @@ def test_context_does_not_authorize_equilibration_before_the_decision(tmp_path, 
     actions = context["next_allowed_actions"]
     assert not any(action.startswith("ALLOW_") for action in actions)
     assert any("cypforge.equilibration_decision" in action for action in actions)
+
+
+@pytest.mark.parametrize("payload", [b"[]", b"null", b"1", b"{", b"\xff", None])
+def test_context_reports_unreadable_stage_evidence_and_blocks_progress(tmp_path, payload):
+    if payload is not None:
+        (tmp_path / "bad.json").write_bytes(payload)
+    (tmp_path / "good.json").write_text('{"status":"success","charge":0}', encoding="utf-8")
+    context = build_agent_context({"run_root": str(tmp_path), "modules": {
+        "bad": {"status": "PASS", "gate_result": "PASS", "manifest_paths": {"evidence": "bad.json"}},
+        "good": {"status": "PASS", "gate_result": "PASS", "manifest_paths": {"evidence": "good.json"}},
+    }})
+    assert "_error" in context["modules"]["bad"]["manifests"]["evidence"]
+    assert context["modules"]["good"]["manifests"]["evidence"]["charge"] == 0
+    assert "STOP_FIX_UPSTREAM_MODULE" in context["next_allowed_actions"]
+
+
+def test_context_reads_bom_stage_manifest(tmp_path):
+    (tmp_path / "stage.json").write_text('{"status":"success","charge":0}', encoding="utf-8-sig")
+    context = build_agent_context({"run_root": str(tmp_path), "modules": {
+        "core": {"status": "PASS", "manifest_paths": {"evidence": "stage.json"}},
+    }})
+    assert context["modules"]["core"]["manifests"]["evidence"]["charge"] == 0

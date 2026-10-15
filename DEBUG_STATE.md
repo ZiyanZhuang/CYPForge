@@ -388,6 +388,14 @@
 - Green: 13 CLI cases; full native regression **233 passed, 6 skipped**, one existing warning.
 - Commit: `fix: reject inconsistent persisted run-root identities`.
 
+### F46 / P1: context loses or trusts unreadable stage evidence
+
+- Red: array/null/numeric roots and non-UTF-8 stage files crashed context; malformed JSON retained a PASS module and allowed progress; missing evidence disappeared; valid BOM JSON was rejected (7 failed cases).
+- Root cause: stage readers assumed object roots, incompletely handled decoding errors, silently skipped absent paths, and did not fail closed when evidence became unreadable.
+- Fix: shared protected/BOM-aware JSON reading, object validation, structured per-file errors, and derived FAIL/current-module/STOP actions for unreadable evidence. Other valid stage evidence is retained and persisted run state is not rewritten.
+- Green: 10 context cases; full native regression **240 passed, 6 skipped**, one existing warning.
+- Commit: `fix: fail context progress closed on unreadable stage evidence`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

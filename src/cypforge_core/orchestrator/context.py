@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
+
+from ..io import read_json
 
 
 # Non-negotiable scientific rules from SKILL.md - surfaced as policy reminders
@@ -80,19 +81,27 @@ def build_agent_context(
 
             for manifest_name, manifest_rel_path in record.get("manifest_paths", {}).items():
                 full_path = run_root / manifest_rel_path
-                if full_path.is_file():
-                    try:
-                        data = json.loads(full_path.read_text(encoding="utf-8"))
-                        module_entry["manifests"][manifest_name] = _compact_manifest(data)
-                    except (json.JSONDecodeError, OSError):
-                        module_entry["manifests"][manifest_name] = {
-                            "_error": f"Cannot read {full_path}"
-                        }
+                try:
+                    data = read_json(full_path)
+                    if not isinstance(data, dict):
+                        raise ValueError("Stage manifest must be a JSON object")
+                    module_entry["manifests"][manifest_name] = _compact_manifest(data)
+                except (ValueError, OSError):
+                    module_entry["manifests"][manifest_name] = {"_error": f"Cannot read stage evidence: {full_path}"}
+
+            evidence_errors = [data["_error"] for data in module_entry["manifests"].values() if "_error" in data]
+            if evidence_errors:
+                module_entry["status"] = module_entry["gate_result"] = "FAIL"
+                module_entry["errors"] = [*module_entry["errors"], *evidence_errors]
+                if skill_id in completed_ids:
+                    completed_ids.remove(skill_id)
+                if skill_id not in failed_ids:
+                    failed_ids.append(skill_id)
 
             modules_data[skill_id] = module_entry
 
             # Count gates
-            gate = record.get("gate_result", "")
+            gate = module_entry.get("gate_result", "")
             if gate == "PASS":
                 total_gates_passed += 1
             elif gate == "WARN":
@@ -101,7 +110,7 @@ def build_agent_context(
                 total_gates_failed += 1
 
             # Collect critical findings
-            for err in record.get("errors", []):
+            for err in module_entry["errors"]:
                 critical_findings.append(f"[{skill_id}] {err}")
             for warn in record.get("warnings", [])[:max_warnings]:
                 warnings.append(f"[{skill_id}] {warn}")
@@ -117,7 +126,7 @@ def build_agent_context(
             "completed_modules": completed_ids,
             "failed_modules": failed_ids,
             "pending_modules": pending_ids,
-            "current_module": _find_current_module(manifest),
+            "current_module": failed_ids[0] if failed_ids else _find_current_module(manifest),
         },
         "modules": modules_data,
         "summary": {
