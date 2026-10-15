@@ -673,6 +673,11 @@ def _fatal_keyword_count(path: Path) -> int:
         r"cannot open",
         r"unit \d+ error",
         r"error termination",
+        r"Ewald bomb",
+        r"PME error",
+        r"abnormal termination",
+        r"missing restraint reference",
+        r"cannot find (?:inpcrd|prmtop)",
     ]
     return sum(len(re.findall(pattern, text, flags=re.I)) for pattern in patterns)
 

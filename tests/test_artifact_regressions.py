@@ -80,6 +80,18 @@ def test_pre_md_validation_checks_normal_end_in_actual_mdout(pre_md_outputs):
     assert result["stages"][0]["normal_end"] is False
 
 
+@pytest.mark.parametrize("fatal", [
+    "Ewald bomb", "PME error", "abnormal termination", "missing restraint reference",
+    "cannot find inpcrd", "cannot find prmtop",
+])
+def test_pre_md_validation_rejects_documented_fatal_messages(pre_md_outputs, fatal):
+    manifest, paths = pre_md_outputs
+    paths["mdout"].write_text("Final Performance Info\n" + fatal + "\n", encoding="utf-8")
+    result = validate_complex_pre_md_run(pre_md_manifest_json=manifest)
+    assert result["status"] == "fail"
+    assert result["stages"][0]["fatal_keyword_count"] == 1
+
+
 @pytest.mark.parametrize("substitute", ["mdout", "restart"])
 def test_pre_md_table_cannot_substitute_another_artifact(pre_md_outputs, substitute):
     manifest, paths = pre_md_outputs

@@ -284,6 +284,14 @@
 - Green: 26 artifact cases; full native regression **192 passed, 6 skipped**, one existing warning. No simulation executed.
 - Commit: `fix: validate pre-MD artifacts against declared stage identity`.
 
+### F33 / P1: documented fatal Amber messages pass pre-MD validation
+
+- Red: six public validation cases retained normal completion markers but contained Ewald bomb, PME error, abnormal termination, missing restraint reference, cannot find inpcrd, or cannot find prmtop; all incorrectly succeeded.
+- Root cause: the fatal-message list omitted these already documented hard-stop signatures.
+- Fix: include the documented signatures in the existing diagnostic matcher; no scientific parameter or chemical rule changed.
+- Green: 32 artifact cases; full native regression **198 passed, 6 skipped**, one existing warning.
+- Commit: `fix: reject documented fatal pre-MD diagnostics`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
