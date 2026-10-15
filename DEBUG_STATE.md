@@ -396,6 +396,14 @@
 - Green: 10 context cases; full native regression **240 passed, 6 skipped**, one existing warning.
 - Commit: `fix: fail context progress closed on unreadable stage evidence`.
 
+### F47 / P2: max-retries advertises an option the controller ignores
+
+- Red: CLI accepted positive/negative retry counts and API execution silently ignored a nonzero setting (3 failed cases). Independent fake first-module failure confirmed no retry occurred.
+- Root cause: the option was parsed/persisted but never consumed.
+- Fix: explicitly reject nonzero automatic retries at init/execution and correct advanced help. Default 0 remains unchanged; failures require review and explicit resume. No automatic re-execution of hard scientific gates is introduced.
+- Green: 19 focused CLI/workflow cases; full native regression **243 passed, 6 skipped**, one existing warning.
+- Commit: `fix: reject unsupported automatic retry settings`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

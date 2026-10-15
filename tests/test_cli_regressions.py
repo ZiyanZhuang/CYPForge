@@ -90,3 +90,13 @@ def test_explicit_run_root_cannot_redirect_to_a_different_run(tmp_path, monkeypa
     assert cli.main() == 2
     assert "run root" in capsys.readouterr().err.lower()
     assert {name: Path(name).read_bytes() for name in before} == before
+
+
+@pytest.mark.parametrize("retry_count", ["1", "-1"])
+def test_init_rejects_unsupported_automatic_retries(tmp_path, monkeypatch, retry_count):
+    root = tmp_path / "run"
+    monkeypatch.setattr(sys, "argv", [
+        "cypforge", "init", "retry", "--ligand-resname", "LIG", "--run-root", str(root), "--max-retries", retry_count,
+    ])
+    assert cli.main() == 2
+    assert not root.exists()

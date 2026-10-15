@@ -255,6 +255,9 @@ def cmd_init(args: argparse.Namespace) -> int:
     if not amber_sh:
         warnings.append("AMBER_SH not set; WSL Amber commands will fail. Set --amber-sh or $env:AMBER_SH.")
 
+    if args.max_retries != 0:
+        print("[ERROR] Automatic retries are unsupported; use --max-retries 0 and review before resume.")
+        return 2
     supplied_pair = bool(supplied_mol2_path and supplied_frcmod_path)
     if bool(supplied_mol2_path) != bool(supplied_frcmod_path):
         print("[ERROR] --supplied-ligand-mol2 and --supplied-ligand-frcmod must be provided together.")
@@ -935,7 +938,7 @@ def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
     advanced.add_argument("--amber-sh", default="", help=advanced_help("Path to amber.sh or set AMBER_SH"))
     advanced.add_argument("--multiwfn-bin", default="", help=advanced_help("Path to Multiwfn or set MULTIWFN_BIN"))
     advanced.add_argument("--auto-accept-warn", action="store_true", help=advanced_help("Auto-accept WARN gates"))
-    advanced.add_argument("--max-retries", type=int, default=0, help=advanced_help("Max retries on module failure (default: 0)"))
+    advanced.add_argument("--max-retries", type=int, default=0, help=advanced_help("Only 0 is supported; review failures before manual resume"))
 
     # run
     p_run = sub.add_parser(

@@ -51,3 +51,11 @@ def test_preparation_query_does_not_erase_later_failure(simulated_workflow):
     orchestrator.workflow.save_manifest(manifest)
 
     assert orchestrator.run_until("cypforge.core3_run_pre_md").workflow_status == "STOPPED_ON_FAIL"
+
+
+def test_execution_rejects_ignored_retry_setting_before_any_module(simulated_workflow):
+    orchestrator, executed = simulated_workflow
+    orchestrator.config.max_retries = 1
+    with pytest.raises(ValueError, match="retries"):
+        orchestrator.run_until("cypforge.core3_run_pre_md")
+    assert executed == []

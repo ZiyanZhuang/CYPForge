@@ -59,6 +59,8 @@ class CYPForgeOrchestrator:
 
     def run_until(self, stop_before_skill_id: str | None = None) -> RunManifest:
         """Execute pending modules, optionally stopping before a named module."""
+        if self.config.max_retries != 0:
+            raise ValueError("Automatic retries are unsupported; set max_retries=0 and review before resume.")
         if not self.workflow.run_root.exists():
             self.init()
         with self.workflow.run_lock():
