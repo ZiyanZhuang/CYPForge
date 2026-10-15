@@ -41,6 +41,7 @@ from .ligand_gpu4pyscf_esp import (
     stage_supplied_ligand_parameters,
 )
 from .local_knowledge import LocalDocsIndex, build_run_diagnosis, load_profile, update_profile
+from .io import write_json
 from .orchestrator import CYPForgeOrchestrator, RunConfig
 
 
@@ -469,13 +470,13 @@ def cmd_protonation_apply(args: argparse.Namespace) -> int:
     config_path = run_root / "run_config.json"
     config_data = json.loads(config_path.read_text(encoding="utf-8"))
     config_data["protonation_decision_json"] = str(decision_path)
-    config_path.write_text(json.dumps(config_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_json(config_path, config_data)
     manifest_path = run_root / "run_manifest.json"
     if manifest_path.is_file():
         manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest_data["run_config"] = config_data
         manifest_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        manifest_path.write_text(json.dumps(manifest_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        write_json(manifest_path, manifest_data)
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0
 
@@ -735,10 +736,7 @@ def cmd_module_ligand_prepare(args: argparse.Namespace) -> int:
         "frcmod": result.get("frcmod"),
     }
     out.mkdir(parents=True, exist_ok=True)
-    (out / "ligand_parameterization_gate.json").write_text(
-        json.dumps(canonical_manifest, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    write_json(out / "ligand_parameterization_gate.json", canonical_manifest)
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0 if result.get("status") in {"prepared", "success"} else 2
 

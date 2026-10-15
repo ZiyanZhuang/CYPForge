@@ -31,8 +31,6 @@
 - Green: 3 focused tests passed; complete native regression **100 passed, 6 skipped**, one existing legacy-wrapper deprecation warning. Runtime: existing Conda `codex-dev` Python 3.12.14, numpy 2.5.2, pytest 9.1.1; process-local source `PYTHONPATH`, plugin autoload disabled. No installation.
 - Commit: `fix: prevent init from overwriting existing runs` (this entry is included in that commit).
 
-## Module coverage
-
 ### F02 / P2: retries within one second overwrite prior command/stdout/stderr logs
 
 - Red: frozen-clock public `ModuleRunner.run_step` test initially **1 failed, 1 passed**; both attempts shared the same stdout path and the earlier evidence was overwritten.
@@ -40,6 +38,17 @@
 - Fix: append a standard-library UUID per attempt; no change to scientific execution or timestamp fields.
 - Green: 2 focused tests passed (including a real Python subprocess from a Chinese/spaced run path); full native regression **102 passed, 6 skipped**, one existing warning.
 - Commit: `fix: retain separate logs for repeated step attempts`.
+
+### F03 / P1: interrupted writes can truncate persistent JSON
+
+- Red: failed-replacement checkpoint test initially **1 failed**; the existing code directly overwrote the checkpoint rather than using a replacement boundary.
+- Root cause: shared `io.write_text/write_json`, workflow config/checkpoints, CLI protonation state and ligand gate, and derived decision files used direct writes. Call sites and the shared `_write_text` alias used by generated stage manifests were inspected.
+- Fix: shared text writer uses a same-directory unique temporary file, flush/fsync, close, and `os.replace`; temporary file is cleaned on failure. JSON writers and direct orchestration/CLI state writes reuse it.
+- Green: failed replacement preserves the previous checkpoint byte-for-byte and leaves no temporary file; 4 persistence tests passed; full native regression **103 passed, 6 skipped**, one existing warning.
+- Limit: file-level atomicity does not serialize two independent workflow writers or make config+manifest a cross-file transaction. Concurrent workflow ownership is checked next.
+- Commit: `fix: atomically persist run state and generated manifests`.
+
+## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
 

@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
+import os
 
 from cypforge_core import cli
 from cypforge_core.orchestrator import RunConfig, WorkflowManager
@@ -44,3 +45,22 @@ def test_cli_init_reports_existing_directory_without_changing_it(tmp_path, capsy
     assert cli.cmd_init(args) == 2
     assert "[ERROR]" in capsys.readouterr().out
     assert list(run_root.iterdir()) == [marker]
+
+
+def test_failed_checkpoint_replacement_preserves_last_manifest(tmp_path, monkeypatch):
+    workflow = WorkflowManager(RunConfig("atomic", str(tmp_path / "run"), str(tmp_path)))
+    manifest = workflow.init_run()
+    original = workflow.manifest_path.read_bytes()
+    manifest.workflow_status = "RUNNING"
+
+    def replacement_failed(source, target):
+        raise OSError("simulated interrupted replacement")
+
+    monkeypatch.setattr(os, "replace", replacement_failed)
+    with pytest.raises(OSError, match="interrupted replacement"):
+        workflow.save_manifest(manifest)
+
+    assert workflow.manifest_path.read_bytes() == original
+    assert {path.name for path in workflow.run_root.iterdir()} == {
+        "run_config.json", "run_manifest.json", "logs", "decisions",
+    }

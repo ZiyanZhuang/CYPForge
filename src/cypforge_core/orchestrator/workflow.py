@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from ..io import write_json
 
 from .models import (
     RunConfig,
@@ -114,10 +115,7 @@ class WorkflowManager:
             "auto_accept_warn": self.config.auto_accept_warn,
             "max_retries": self.config.max_retries,
         }
-        self.config_path.write_text(
-            json.dumps(config_dict, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
+        write_json(self.config_path, config_dict)
 
         # Build absolute stop conditions from skills manifest
         stop_conditions = []
@@ -198,10 +196,7 @@ class WorkflowManager:
             "completed_at": manifest.completed_at,
         }
         self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        self.manifest_path.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
+        write_json(self.manifest_path, payload)
 
     # state queries
 

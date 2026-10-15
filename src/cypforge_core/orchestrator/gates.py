@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from ..io import write_json
 
 from .models import AUDIT_DIR_REL, GateResult
 
@@ -261,11 +262,7 @@ def make_equilibration_decision(run_root: str) -> None:
             "warned_gate_count": len(warned_gates),
         }
 
-    decision_path.parent.mkdir(parents=True, exist_ok=True)
-    decision_path.write_text(
-        json.dumps(state, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    write_json(decision_path, state)
     print(json.dumps(state, indent=2, ensure_ascii=False))
 
 
@@ -341,8 +338,5 @@ def make_production_readiness_check(run_root: str) -> None:
                 "production_authorized": False,
             }
 
-    output_path.write_text(
-        json.dumps(state, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    write_json(output_path, state)
     print(json.dumps(state, indent=2, ensure_ascii=False))
