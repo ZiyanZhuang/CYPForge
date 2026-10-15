@@ -66,6 +66,14 @@
 - Limit: diagnostic output intentionally removes trailing path-containing context conservatively; this is a focused redaction repair, not a guarantee that arbitrary unknown secret formats can be recognized.
 - Commit: `fix: redact credentials and complete paths from diagnoses`.
 
+### F06 / P1: malformed or conflicting gate manifests can pass or crash
+
+- Red: 13 public GateChecker cases initially failed: PASS/success hid child FAIL/WARN, unknown child statuses passed, wrong JSON root/child types crashed, invalid UTF-8 escaped the failed-gate boundary.
+- Root cause: top-level status returned before child checks, sub-statuses defaulted to PASS without normalization, and read/summary boundaries assumed valid object shapes.
+- Fix: recursively combine declared statuses with FAIL precedence; unknown status, missing child status, wrong shape, or declared empty child list fails closed. Decode BOM-bearing UTF-8 and convert unreadable encodings to FAIL evidence. Summary tolerates malformed values without masking the failure.
+- Green: 13 focused cases passed; full native regression **118 passed, 6 skipped**, one existing warning. No chemical thresholds changed.
+- Commit: `fix: fail closed on malformed and conflicting gate manifests`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

@@ -39,8 +39,8 @@ class GateChecker:
                 continue
 
             try:
-                data = json.loads(full_path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError) as exc:
+                data = json.loads(full_path.read_text(encoding="utf-8-sig"))
+            except (json.JSONDecodeError, UnicodeError, OSError) as exc:
                 gates.append(
                     GateResult(
                         gate_id=f"{skill_id}.manifest_unreadable",
@@ -58,7 +58,7 @@ class GateChecker:
                     gate_id=f"{skill_id}.{name}",
                     name=name,
                     status=status,
-                    detail=self._summarize_manifest(skill_id, name, data),
+                    detail=self._summarize_manifest(skill_id, name, data) if isinstance(data, dict) else "Manifest JSON must be an object",
                     evidence_file=str(full_path),
                 )
             )
@@ -157,28 +157,27 @@ class GateChecker:
         interpret is a contract violation by the producing module and should
         stop the workflow, not be silently allowed through human review.
         """
-        raw = data.get("status", "unknown")
+        if not isinstance(data, dict):
+            return "FAIL"
+        statuses = []
+        raw = data.get("status")
+        normalized = "FAIL"
         if isinstance(raw, str):
             raw_lower = raw.lower()
             if raw_lower in ("pass", "passed", "success", "prepared", "ok"):
-                return "PASS"
-            if raw_lower in ("fail", "failed", "error", "failure"):
+                normalized = "PASS"
+            elif raw_lower in ("warn", "warning"):
+                normalized = "WARN"
+        if "status" in data:
+            statuses.append(normalized)
+        if "gate_results" in data:
+            sub_results = data["gate_results"]
+            if not isinstance(sub_results, list) or not sub_results:
                 return "FAIL"
-            if raw_lower in ("warn", "warning"):
-                return "WARN"
-        # If the manifest has sub-gate results (like global_audit), combine them.
-        # Require a non-empty list - an empty gate_results paired with an
-        # unrecognized top-level status would otherwise leak through as PASS
-        # (e.g. {"status": 0, "gate_results": []}), which is a fail-open hole.
-        sub_results = data.get("gate_results")
-        if isinstance(sub_results, list) and sub_results:
-            sub_statuses = [g.get("status", "PASS") for g in sub_results]
-            if "FAIL" in sub_statuses:
-                return "FAIL"
-            if "WARN" in sub_statuses:
-                return "WARN"
-            return "PASS"
-        return "FAIL"  # unrecognized status -> fail closed
+            statuses.extend(self._extract_status(gate) for gate in sub_results)
+        if not statuses or "FAIL" in statuses:
+            return "FAIL"
+        return "WARN" if "WARN" in statuses else "PASS"
 
     def _summarize_manifest(
         self, skill_id: str, name: str, data: dict[str, Any]
@@ -187,13 +186,16 @@ class GateChecker:
         status = data.get("status", "-")
         lines = [f"status={status}"]
 
-        if "gate_results" in data:
+        if isinstance(data.get("gate_results"), list):
             for g in data["gate_results"]:
+                if not isinstance(g, dict):
+                    lines.append("invalid gate result")
+                    continue
                 g_status = g.get("status", "-")
                 g_name = g.get("name", g.get("gate", "-"))
                 lines.append(f"{g_name}={g_status}")
 
-        if "outputs" in data:
+        if isinstance(data.get("outputs"), (dict, list)):
             lines.append(f"{len(data['outputs'])} output files")
 
         return "; ".join(lines[:6])
