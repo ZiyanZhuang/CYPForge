@@ -74,7 +74,8 @@ def _format_cmd(template: str, values: dict[str, Any], kind: str = "python_scrip
                 r'\s*--\S+\s+(?:"' + placeholder + r'"|\'' + placeholder + r"\'|" + placeholder + r')\s*',
                 ' ', result
             )
-    # Second pass: substitute remaining placeholders.
+    # Substitute only original placeholders; inserted path text is never a template.
+    replacements = {}
     for key, val in values.items():
         val_str = str(val) if val is not None else ""
         # On non-Windows hosts, normalize backslashes to forward slashes
@@ -92,7 +93,8 @@ def _format_cmd(template: str, values: dict[str, Any], kind: str = "python_scrip
             replacement = shlex.quote(val_str)
         else:
             replacement = val_str
-        result = result.replace("{" + key + "}", replacement)
+        replacements[key] = replacement
+    result = re.sub(r"\{([A-Za-z_]\w*)\}", lambda match: replacements.get(match[1], match[0]), result)
     # Clean up
     result = result.strip()
     return result

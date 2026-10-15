@@ -78,6 +78,28 @@ def test_command_substitution_preserves_repeated_spaces_in_input_paths(tmp_path,
     assert record.status == "PASS", record.error_message
 
 
+@pytest.mark.parametrize("kind", ["python_script", "python_inline", "wsl_command"])
+def test_placeholder_text_inside_a_filename_remains_literal(tmp_path, monkeypatch, kind):
+    if kind == "wsl_command" and sys.platform == "win32" and not shutil.which("wsl"):
+        pytest.skip("WSL unavailable")
+    source = tmp_path / "input {ligand_resname} 中文.pdb"
+    source.write_text("END\n", encoding="utf-8")
+    (tmp_path / "check_path.py").write_text(
+        "import pathlib, sys\nassert pathlib.Path(sys.argv[1]).is_file(), sys.argv[1]\n", encoding="utf-8",
+    )
+    templates = {
+        "python_script": 'python check_path.py "{raw_protein_heme_pdb}"',
+        "python_inline": "from pathlib import Path; assert Path({raw_protein_heme_pdb}).is_file()",
+        "wsl_command": "test -f {raw_protein_heme_pdb}",
+    }
+    monkeypatch.delenv("AMBER_SH", raising=False)
+    monkeypatch.delenv("AMBERHOME", raising=False)
+    input_path = _win_to_wsl(source) if kind == "wsl_command" and sys.platform == "win32" else str(source)
+    runner = ModuleRunner(RunConfig("literal", str(tmp_path), str(tmp_path), raw_protein_heme_pdb=input_path, ligand_resname="NCT"))
+    record = runner.run_step(StepDef("literal", kind, command_template=templates[kind]), tmp_path / "logs")
+    assert record.status == "PASS", record.error_message
+
+
 @pytest.mark.parametrize("source", ["explicit", "AMBER_SH", "AMBERHOME"])
 def test_runner_sources_explicit_setup_file_without_filename_guessing(tmp_path, monkeypatch, source):
     if sys.platform == "win32" and not shutil.which("wsl"):

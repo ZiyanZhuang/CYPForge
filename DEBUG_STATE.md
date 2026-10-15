@@ -356,6 +356,14 @@
 - Green: 17 focused runner/CLI/resolver cases; full native regression **223 passed, 6 skipped**, one existing warning. Real probes source harmless setup files in apostrophe/Chinese/repeated-space paths; no engine invoked.
 - Commit: `fix: resolve Amber setup files consistently without basename guessing`.
 
+### F42 / P1: placeholder-looking filename text is substituted twice
+
+- Red: all three public runner kinds changed an existing filename containing literal `{ligand_resname}` into a different nonexistent path (3 failed cases).
+- Root cause: sequential string replacements reprocessed values inserted by earlier replacements.
+- Fix: prepare the existing kind-specific replacements, then substitute only the original template once. Literal brace text inside user values remains data.
+- Green: 11 runner cases; full native regression **226 passed, 6 skipped**, one existing warning. Real file checks covered Python argv, Python inline, and WSL Bash.
+- Commit: `fix: substitute command placeholders in a single pass`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
