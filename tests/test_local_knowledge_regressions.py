@@ -1,8 +1,30 @@
 import json
 import sqlite3
+import os
 import pytest
 
-from cypforge_core.local_knowledge import build_run_diagnosis, LocalDocsIndex
+from cypforge_core.local_knowledge import build_run_diagnosis, LocalDocsIndex, update_profile
+
+
+@pytest.mark.parametrize("artifact", ["diagnosis", "profile"])
+def test_local_json_reports_preserve_previous_output_on_failed_commit(tmp_path, monkeypatch, artifact):
+    (tmp_path / "run_config.json").write_text('{"run_name":"atomic"}', encoding="utf-8")
+    (tmp_path / "run_manifest.json").write_text('{"modules":{}}', encoding="utf-8")
+    output = tmp_path / ("run_diagnosis.json" if artifact == "diagnosis" else "profile.json")
+    output.write_text('{"values":{},"previous":"valid"}', encoding="utf-8")
+    original = output.read_bytes()
+
+    def fail_commit(*args):
+        raise OSError("interrupted report commit")
+
+    monkeypatch.setattr(os, "replace", fail_commit)
+    with pytest.raises(OSError, match="interrupted report commit"):
+        if artifact == "diagnosis":
+            build_run_diagnosis(tmp_path)
+        else:
+            update_profile(["amber_sh=/safe/amber.sh"], output)
+    assert output.read_bytes() == original
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 def test_diagnosis_redacts_secret_variants_and_complete_spaced_paths(tmp_path):

@@ -244,6 +244,14 @@
 - Green: 11 persistence cases; full native regression **184 passed, 6 skipped**, one existing warning. Independent pressure rerun follows the separate diagnosis atomic-write fix.
 - Commit: `fix: retry transient shared-filesystem checkpoint access`.
 
+### F28 / P1: diagnosis/profile overwrites expose partial JSON
+
+- Red: independent concurrent diagnosis readers observed 8 malformed JSON reads natively and 70 on WSL; two interrupted-commit cases failed for diagnosis/profile because they directly overwrote their targets.
+- Root cause: these local-knowledge JSON producers bypassed the shared atomic writer.
+- Fix: reuse atomic JSON writing for both outputs and shared JSON reading for profiles. Readers see a complete previous or next report; interrupted replacement preserves the previous file.
+- Green: 6 local-knowledge cases; full native regression **186 passed, 6 skipped**, one existing warning. Profile updates remain single-writer operations; no new cross-process merge semantics are introduced.
+- Commit: `fix: commit diagnosis and profile JSON atomically`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

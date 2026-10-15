@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 from typing import Any, Iterable, Iterator
 
-from .io import read_json
+from .io import read_json, write_json
 
 
 DEFAULT_HOME = Path.home() / ".cypforge"
@@ -203,7 +203,7 @@ def load_profile(path: str | Path | None = None) -> dict[str, Any]:
     profile_path = Path(path) if path else DEFAULT_HOME / "profile.json"
     if not profile_path.is_file():
         return {"schema": "cypforge.user_profile.v1", "values": {}}
-    data = json.loads(profile_path.read_text(encoding="utf-8"))
+    data = read_json(profile_path)
     if not isinstance(data.get("values", {}), dict):
         raise ValueError(f"Invalid CYPForge profile: {profile_path}")
     return data
@@ -226,7 +226,7 @@ def update_profile(assignments: list[str], path: str | Path | None = None) -> di
     profile["schema"] = "cypforge.user_profile.v1"
     profile["updated_at_utc"] = _utc_now()
     profile_path.parent.mkdir(parents=True, exist_ok=True)
-    profile_path.write_text(json.dumps(profile, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_json(profile_path, profile)
     return {**profile, "profile_path": str(profile_path)}
 
 
@@ -309,5 +309,5 @@ def build_run_diagnosis(run_root: str | Path, output: str | Path | None = None) 
         ],
     }
     output_path = Path(output) if output else root / "run_diagnosis.json"
-    output_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_json(output_path, report)
     return report
