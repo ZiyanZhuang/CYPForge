@@ -8,9 +8,10 @@ at the authenticated pre-publication check; publication must recheck both.
 
 ## Repairs
 
-52 reproduced defects have separate repair commits and red/green records in
+53 reproduced defects (52 code issues and one documentation-contract issue)
+have separate repair commits and red/green records in
 [DEBUG_STATE.md](https://github.com/ZiyanZhuang/CYPForge/blob/release/1.1/DEBUG_STATE.md):
-**1 P0, 41 P1, 10 P2**.
+**1 P0, 41 P1, 11 P2**.
 
 - **P0:** repeated/concurrent initialization could reset an existing run (F01).
 - **P1, persistence:** atomic checkpoint/config/report commits, bounded retries
@@ -34,7 +35,8 @@ at the authenticated pre-publication check; publication must recheck both.
   refresh docs provenance; close/rollback SQLite transactions; standardize CLI
   errors and missing-state exits; preserve custom split-stage names; explicitly
   reject unsupported nonzero retry counts; retain unique logs at the measured
-  Windows path boundary (F02, F20–F23, F29, F35, F43, F47, F51).
+  Windows path boundary; synchronize execution-skill artifact, log and recovery
+  guidance with actual producers (F02, F20–F23, F29, F35, F43, F47, F51, F53).
 
 No new dependencies, force-field/protocol changes, aromatic perception algorithm,
 software installation, or license changes were introduced.

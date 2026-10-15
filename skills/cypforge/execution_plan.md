@@ -17,29 +17,37 @@ This plan defines the strict execution order for the CYPForge skill shell. It is
 
 ## Resume Policy
 
-Resuming is allowed only from a module whose output manifest exists and whose decision report is `PASS` or explicitly accepted `WARN`.
+The controller skips completed `PASS` modules and accepted `WARN` modules, then
+retries the first pending, failed or interrupted module after review. A failed
+gate never authorizes a later module. `--max-retries` supports only 0; review the
+cause before an explicit retry. Use `prep-only` for a no-MD continuation;
+`resume` can execute MD beyond the `PREPARED` boundary.
 
 Do not resume from:
 
 ```text
-missing manifest
-FAIL state
+missing or corrupt run checkpoint
+unfixed FAIL state
 unreviewed WARN state
-changed input file without re-running upstream gates
-changed protonation decision JSON without re-running Core 3 from finalization
-changed ligand SDF or complex PDB without re-running Core 2
-changed heme state without re-running Core 1 and downstream modules
+changed input file while retaining cached upstream gates
 ```
+
+Use a new run for changed ligand SDF, complex PDB or heme state so that upstream
+gates run again. Apply protonation decisions before downstream consumption;
+once solvation or later work has started/cached outputs, `protonation apply`
+rejects the edit before writes and requires a new run.
 
 ## Required Manifests
 
 ```text
-00_environment_check/environment_manifest.json
 01_heme_only/prepare_report.json
-02_heme_mapping_leapin/heme_mapping_manifest.json
-13_ligand_mapping_leapin/ligand_mapping_manifest.json
+02_heme_mapping_leapin/heme_mapping_leapin_manifest.json
+10_ligand_gpu4pyscf_esp/complex_pose_staging_manifest.json
+10_ligand_gpu4pyscf_esp/ligand_parameterization_gate.json
+13_ligand_mapping_leapin/ligand_mapping_leapin_manifest.json
 14_complex_protonation_finalize/protonation_finalize_manifest.json
 15_complex_solvation_ionization/solvation_manifest.json
+15_complex_solvation_ionization/solvation_ionization_validation.json
 17_complex_pre_md_equilibration/complex_pre_md_equilibration_manifest.json
 17_complex_pre_md_equilibration/complex_pre_md_equilibration_run_validation.json
 18_global_cyp450_audit/00_manifest.json
@@ -47,26 +55,41 @@ changed heme state without re-running Core 1 and downstream modules
 production_readiness_state.json
 ```
 
+Each path is required when its producing module completes; a `PREPARED` run
+has no MD-run, global-audit or final-decision output yet. `run_config.json` and
+`run_manifest.json` hold configuration and module/step state. Environment checks
+record step results and logs there; they do not generate an environment manifest.
+The supplied-parameter route additionally writes
+`10_ligand_gpu4pyscf_esp/supplied_ligand_parameters_manifest.json`; new-fit routes
+have their own fitting artifacts. The explicit protonation decision is recorded
+in `protonation_decision.json` by `protonation apply`.
+
 ## Command Logging
 
-Every command must write:
+Completed subprocess attempts use a unique UUID basename:
 
 ```text
-<RUN_ROOT>/logs/<module>/<timestamp>_command.txt
-<RUN_ROOT>/logs/<module>/<timestamp>_stdout.txt
-<RUN_ROOT>/logs/<module>/<timestamp>_stderr.txt
-<RUN_ROOT>/logs/<module>/<timestamp>_exit_code.txt
+<RUN_ROOT>/logs/<module>/<attempt_uuid>_command.txt
+<RUN_ROOT>/logs/<module>/<attempt_uuid>_stdout.txt
+<RUN_ROOT>/logs/<module>/<attempt_uuid>_stderr.txt
 ```
 
-The command log must include:
+The command log records:
 
 ```text
 working directory
 full command
-environment variables relevant to CYPForge
-input file hashes when practical
+step name and kind
+start/completion timestamps and status
 exit code
 ```
+
+Exit code and stdout/stderr paths are also stored in the checkpoint StepRecord.
+Configuration belongs to `run_config.json`; source hashes are recorded by the
+producing stage manifests where available. There is no separate exit-code file.
+Failed launches/timeouts can lack console files; inspect the command log and
+StepRecord error before continuing. Raw logs/configuration contain local paths;
+use `cypforge diagnose` for a redacted shareable report.
 
 ## Stop Policy
 

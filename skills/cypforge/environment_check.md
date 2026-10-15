@@ -69,11 +69,11 @@ python -c "import gpu4pyscf; print('GPU4PySCF OK')"
 
 ## Outputs
 
-```text
-<RUN_ROOT>/00_environment_check/environment_manifest.json
-<RUN_ROOT>/00_environment_check/tool_versions.txt
-<RUN_ROOT>/00_environment_check/environment_decision_report.md
-```
+The controller records configuration in `<RUN_ROOT>/run_config.json`, and tool
+availability steps, exit codes and status in `<RUN_ROOT>/run_manifest.json`.
+Command/stdout/stderr files are under `<RUN_ROOT>/logs/environment_check/`.
+It creates no separate environment manifest, version table or Markdown report.
+Manual version probes/review notes may be saved separately when performed.
 
 ## Hard Gates
 
@@ -111,19 +111,21 @@ Stop before Core 1. Do not prepare heme, ligand, solvation, or MD files.
 
 ## Audit Artifacts
 
-The manifest must record:
+Use the configuration and checkpoint to inspect:
 
 ```text
 project_root
 run_root
 wsl_user
 amber_setup_script
-PYTHONPATH
 tool probe commands
 tool probe exit codes
-tool version snippets
+stdout/stderr log paths and captured availability output
 PASS/WARN/FAIL status
 ```
+
+The source import probe checks the effective Python environment. Exact process
+environment dumps and software version snippets are not automatically recorded.
 
 ## Scientific Interpretation
 

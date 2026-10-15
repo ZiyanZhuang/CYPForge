@@ -102,21 +102,32 @@ cypforge module ligand leap `
 ```text
 <RUN_ROOT>/10_ligand_gpu4pyscf_esp/*.mol2
 <RUN_ROOT>/10_ligand_gpu4pyscf_esp/*.frcmod
-<RUN_ROOT>/10_ligand_gpu4pyscf_esp/*mapping*.json
-<RUN_ROOT>/10_ligand_gpu4pyscf_esp/*mapping*.csv
-<RUN_ROOT>/10_ligand_gpu4pyscf_esp/*charge*
+<RUN_ROOT>/10_ligand_gpu4pyscf_esp/prepared_ligand_complex.pdb
+<RUN_ROOT>/10_ligand_gpu4pyscf_esp/complex_pose_staging_manifest.json
 <RUN_ROOT>/10_ligand_gpu4pyscf_esp/ligand_parameterization_gate.json
 <RUN_ROOT>/13_ligand_mapping_leapin/ligand_mapping_leapin_manifest.json
 <RUN_ROOT>/13_ligand_mapping_leapin/ligand_mapping_leapin.in
-<RUN_ROOT>/13_ligand_mapping_leapin/core2_decision_report.md
 ```
+
+The supplied-parameter route also writes:
+
+```text
+<RUN_ROOT>/10_ligand_gpu4pyscf_esp/supplied_ligand_parameters_manifest.json
+<RUN_ROOT>/10_ligand_gpu4pyscf_esp/confirmed_ligand_pose.pdb
+```
+
+New-charge routes additionally create their own mapping/fitting manifests,
+mapping tables and charge files; those are not required from the supplied route.
+Inspect its supplied manifest and ligand gate for mapping/charge evidence.
+A human may add `core2_decision_report.md`; no such Markdown report is generated
+automatically.
 
 ## Hard Gates
 
 `FAIL` if:
 
 ```text
-ligand atom mapping file missing
+ligand atom mapping evidence missing from route manifests/files
 mapping was inferred from atom order
 SDF/PDB ligand element mismatch
 SDF/PDB heavy atom count mismatch

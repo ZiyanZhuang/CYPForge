@@ -99,8 +99,10 @@ GLU275 watchlist remains scientifically sensitive
 
 ```text
 <GLOBAL_AUDIT_DIR>/equilibration_decision_state.json
-<GLOBAL_AUDIT_DIR>/equilibration_decision_state.md
 ```
+
+An optional human review may add a Markdown report; the decision writer produces
+only the JSON state.
 
 ## Failure Behavior
 

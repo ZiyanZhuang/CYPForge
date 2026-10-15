@@ -37,7 +37,7 @@ cypforge module heme prepare `
   "<RAW_PROTEIN_HEME_PDB>"
 
 cypforge module heme leap `
-  --prepared-pdb "<RUN_ROOT>\01_heme_only\prepared.pdb" `
+  --prepared-pdb "<RUN_ROOT>\01_heme_only\prepared_heme_complex.pdb" `
   --prepare-report-json "<RUN_ROOT>\01_heme_only\prepare_report.json" `
   --output-dir "<RUN_ROOT>\02_heme_mapping_leapin" `
   --heme-resname <HEME_RESNAME>
@@ -81,20 +81,22 @@ If the user asks "can we remove TM helices?" without exact ranges, stop and ask 
 ## Outputs
 
 ```text
-<RUN_ROOT>/01_heme_only/prepared.pdb
+<RUN_ROOT>/01_heme_only/prepared_heme_complex.pdb
 <RUN_ROOT>/01_heme_only/prepare_report.json
 <RUN_ROOT>/01_heme_only/transmembrane_trimmed_input.pdb  # optional, only when trimming is enabled
 <RUN_ROOT>/02_heme_mapping_leapin/heme_mapping_leapin.in
-<RUN_ROOT>/02_heme_mapping_leapin/heme_mapping_manifest.json
-<RUN_ROOT>/02_heme_mapping_leapin/core1_decision_report.md
+<RUN_ROOT>/02_heme_mapping_leapin/heme_mapping_leapin_manifest.json
 ```
+
+A human review may add `core1_decision_report.md`; the controller does not
+generate that Markdown report automatically.
 
 ## Hard Gates
 
 `FAIL` if:
 
 ```text
-prepared.pdb missing
+prepared_heme_complex.pdb missing
 prepare_report.json missing
 heme_mapping_leapin.in missing
 proximal cysteine is not CYM in prepared coordinates

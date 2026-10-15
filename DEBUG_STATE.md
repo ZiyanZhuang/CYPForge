@@ -22,7 +22,7 @@
 - `gh release list` initially reported missing authentication. A later read-only live check succeeded using the existing context, with repository push/admin permission metadata; no login or credential extraction was performed. Authenticated tag/Release GETs for v1.1.0/v1.1.1 all returned 404. Unauthenticated API was rate-limited (403), never treated as an existence check.
 - Task-owned run directory outside the repository is writable. Working source has no user modifications. Git push dry-run succeeded; actual branch/tag/Release publication remains gated on reviews.
 - Current full regression: **255 passed, 6 skipped** native; **251 passed, 10 skipped** WSL. Both have one existing warning. Six shared skips need absent optional external fixtures; WSL's four additional skips are two native Windows launchers, one native Windows/WSL locking test and the Windows path-length boundary.
-- Repair totals: **52 separate defect commits: 1 P0, 41 P1, 10 P2**. Formal rounds 1 and 2 have passed; round 3 remains the next publication gate.
+- Repair totals: **53 separate defect commits: 1 P0, 41 P1, 11 P2** (52 code defects plus one documentation-contract defect). Formal rounds 1 and 2 have passed; round 3 remains the next publication gate.
 
 ## Findings and fixes
 
@@ -450,6 +450,15 @@
 - Fix: after successful cd to the intended solvation directory and immediately before LEaP, remove only its three fixed generated outputs. The existing validator now rejects a no-output attempt even when LEaP returns 0. Source/parameter/manifest files remain intact; the manual skill command matches the controller. Intentional LEaP reruns already overwrite those outputs.
 - Green: 46 artifact cases; full native regression **255 passed, 6 skipped**, one existing warning. Formal round 2 must verify this boundary and full regression again before progressing.
 - Commit: `fix: invalidate prior solvation outputs before each LEaP attempt`.
+
+### F53 / P2: execution skills require obsolete artifacts and recovery steps
+
+- Formal consistency review reproduced missing required manifest names, timestamp/exit-code files and an obsolete protonation-recovery instruction in execution_plan.md. Connected Core 1/2/environment/decision skills also promised filenames or generated human reports absent from the real producers; Core 1's manual LEaP example selected nonexistent prepared.pdb.
+- Red: task-owned `../debug_artifacts/execution_plan_contract_probe.py` compares the plan against all 13 controller output manifests, real frozen-smoke files/logs and route-specific outputs; old guidance fails with three obsolete/five omitted controller paths and the related missing artifacts. Red logs are preserved in `execution_plan_F53_red.txt` and `execution_plan_F53_red_extended.txt`.
+- Root cause: execution documentation had drifted from registered producers and F50/F51. No additional runtime artifact is needed.
+- Fix: synchronize canonical manifest/prepared filenames, route-specific evidence, optional human reports, actual UUID/StepRecord logging, reviewed retry semantics and the new-run boundary after changed consumed inputs. Scientific gates and code remain unchanged.
+- Green: the same external contract probe passes; full native regression **255 passed, 6 skipped**, one existing warning. Round 3 must re-review the frozen doc-only fix before publication.
+- Commit: `docs: align execution skills with actual controller artifacts`.
 
 ## Module coverage
 

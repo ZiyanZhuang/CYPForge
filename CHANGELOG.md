@@ -29,6 +29,8 @@ default branch. The older 1.1.0 source-history entry below is retained; no remot
   and unsupported nonzero retry counts, and preserve special-character paths.
 - Repair redaction, local docs provenance/transaction cleanup, and diagnosis/profile
   atomic writes. Native Linux uses Bash directly.
+- Align execution-skill manifests, prepared filenames, route-specific artifacts,
+  UUID logs, optional human reports and recovery guidance with actual producers.
 - Validate real 4EJJ preparation with configured AmberTools through input rendering,
   plus static topology/coordinate/CYM–Fe checks and owned fake-engine stress tests.
   See [RELEASE_1.1.md](RELEASE_1.1.md) and [DEBUG_STATE.md](DEBUG_STATE.md) for
