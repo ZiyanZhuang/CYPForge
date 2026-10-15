@@ -9,6 +9,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
+from uuid import uuid4
 
 from .models import RunConfig, StepDef, StepRecord
 
@@ -184,7 +185,7 @@ class ModuleRunner:
         )
 
         log_dir.mkdir(parents=True, exist_ok=True)
-        prefix = f"{_ts()}_{step.name}"
+        prefix = f"{_ts()}_{step.name}_{uuid4().hex}"
 
         stdout_path = log_dir / f"{prefix}_stdout.txt"
         stderr_path = log_dir / f"{prefix}_stderr.txt"

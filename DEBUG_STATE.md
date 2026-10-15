@@ -33,6 +33,14 @@
 
 ## Module coverage
 
+### F02 / P2: retries within one second overwrite prior command/stdout/stderr logs
+
+- Red: frozen-clock public `ModuleRunner.run_step` test initially **1 failed, 1 passed**; both attempts shared the same stdout path and the earlier evidence was overwritten.
+- Root cause: log prefix used only second-resolution UTC plus the step name. Checked `run_step` callers in the orchestrator.
+- Fix: append a standard-library UUID per attempt; no change to scientific execution or timestamp fields.
+- Green: 2 focused tests passed (including a real Python subprocess from a Chinese/spaced run path); full native regression **102 passed, 6 skipped**, one existing warning.
+- Commit: `fix: retain separate logs for repeated step attempts`.
+
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
 
 ## Smoke and robustness evidence
