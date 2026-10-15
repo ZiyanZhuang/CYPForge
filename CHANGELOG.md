@@ -6,6 +6,11 @@
   for `vlimit exceeded`. The shared check is used by generated Bash and the
   independent Python pre-MD validator. Reproduced with real GPU output and
   public-boundary regression tests; this fix is after the immutable v1.1.0 tag.
+- Complete real local-GPU stages 01–08 (600 ps), 50 ps of bounded free-NPT/NVE
+  and split-restart diagnostics, and a 0.008 ps restart microprobe. Finite-state
+  and sampled coordination checks pass; free-NPT density still relaxes.
+  [GPU_VALIDATION.md](GPU_VALIDATION.md) records the measured results and limits;
+  no equilibrium, production-readiness or long-time restart-equivalence claim.
 
 ## 1.1.0 — independent maintenance release (2026-10-15)
 
