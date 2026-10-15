@@ -21,7 +21,8 @@
 - Git remote tags: only `v1.2.0`; `release/1.1` absent remotely at baseline.
 - `gh release list` initially reported missing authentication. A later read-only live check succeeded using the existing context, with repository push/admin permission metadata; no login or credential extraction was performed. Authenticated tag/Release GETs for v1.1.0/v1.1.1 all returned 404. Unauthenticated API was rate-limited (403), never treated as an existence check.
 - Task-owned run directory outside the repository is writable. Working source has no user modifications. Git push dry-run succeeded; actual branch/tag/Release publication remains gated on reviews.
-- Current full regression: **244 passed, 6 skipped** native; **241 passed, 9 skipped** WSL. Both have one existing warning. WSL's three additional skips are two native Windows launchers and one native Windows/WSL locking test.
+- Current full regression: **255 passed, 6 skipped** native; **251 passed, 10 skipped** WSL. Both have one existing warning. Six shared skips need absent optional external fixtures; WSL's four additional skips are two native Windows launchers, one native Windows/WSL locking test and the Windows path-length boundary.
+- Repair totals: **52 separate defect commits: 1 P0, 41 P1, 10 P2**. Formal rounds 1 and 2 have passed; round 3 remains the next publication gate.
 
 ## Findings and fixes
 
@@ -474,7 +475,8 @@ Portable no-MD commands and expected review boundary are reproduced in [RELEASE_
 
 - First real smoke `quick_4ejj_env_probe`: init 0; after F09/F10 environment/Core1/Core2 PASS and prep-only 3; recommend 0; user explicitly confirmed the repository's 4EJJ choices; apply 0; preparation/render 0. After F12 status is PREPARED with six PASS and four PENDING.
 - Special-path smoke `final_4ejj  中文's {ligand_resname}`: init 0, prep-only 3, recommend 0, confirmed apply 0, prep-only/status/context/diagnose all 0. `../debug_artifacts/final_smoke_20261015_183648/commands.json` and summary.json record argv/exits; logs and generated run files remain outside tracked source. Source HEAD recorded at completion: 66114f4; later CLI-only hardening and release-version metadata are separately tested.
-- Independent real topology calculation: 71,698 atoms, 21,833 residues, 21,360 waters, 6 Cl−, net charge about -1.84e-7 e. CYM410 SG–HEM466 FE is an explicit topology bond, distance 2.52705 A (RK 39.00, REQ 2.565). Matched prepared-complex heavy atoms: 3,817; whole-complex rigid-fit RMSD 5.01e-8 A, ligand heavy RMSD 5.21e-8 A. cpptraj reads topology/restart and checks one static frame with zero problems. LEaP rigid reorientation was accounted for; raw unaligned coordinate distance was not misreported as pose drift.
+- Final frozen-source smoke `final_4ejj  中文's {ligand_resname} reviewed`: source `b780f6322472387482ec11c0a6f6d30fccbc580f`; all source file SHA256 values checked unchanged after every command. init 0, prep-only 3, recommend 0, confirmed apply 0, prep-only/status/context/diagnose all 0; final PREPARED, six PASS/four PENDING. Exact argv, exits, timestamps and source hashes: `../debug_artifacts/final_smoke_20261015_190255/{commands,summary}.json`. This run includes F49–F52 and supersedes earlier smoke as final release evidence.
+- Independent real topology calculation on that final run: 71,698 atoms, 21,833 residues, 21,360 waters, 6 Cl−, net charge about -1.84e-7 e. CYM410 SG–HEM466 FE is an explicit topology bond, distance 2.52705 A (RK 39.00, REQ 2.565). Matched prepared-complex heavy atoms: **3,816**; whole-complex rigid-fit RMSD 5.01e-8 A, 12 ligand heavy atoms under the same transform RMSD 5.21e-8 A. cpptraj reads topology/restart and checks one static frame with zero problems. Pre-MD copied topology/restart hashes equal the solvation sources; nine mdin files are nonempty, three generated shell scripts pass bash -n, and the MD run directory remains empty. LEaP rigid reorientation was accounted for; raw unaligned coordinate distance was not misreported as pose drift. Evidence: `../audit_science_final_reviewed.txt` and `../debug_artifacts/audit_science_final_reviewed/`.
 - Both native and WSL: 600 saves + 200 status + 200 diagnosis with **0 protected-API errors** after F27/F28, repeated after F30. Independent real CLI: 24/24 calls exit 0 with 1,800/1,800 concurrent saves successful.
 - Each OS's ten-process init race yielded exactly one owner; six repeated init attempts preserved config/checkpoint bytes; five same-OS lock contenders were rejected. Native/native, WSL/WSL, native/WSL and WSL/native all reject simultaneous writers and recover when an owned holder exits inside its lock using os._exit(73), bypassing finally. All child processes were reaped.
 - Raw filesystem readers still observed transient permission/DrvFS errors, but no partial JSON after the atomic report fix. The protected API retries are bounded, not an unlimited promise for persistently held handles or network storage.
@@ -483,8 +485,8 @@ Portable no-MD commands and expected review boundary are reproduced in [RELEASE_
 
 ## Independent reviews
 
-1. Correctness: pending.
-2. Regression, including full pytest: pending.
+1. Correctness: **No issues found.** after F49, reviewed `02dd4b831734e90e34555b3a7ac120e3139270cc`. Independent full suite: 247 passed/6 skipped. Report `../review1_correctness_after_F49.txt`, SHA256 `18523c3dcd3abe74489d744546602e30f3adcd6cec265a2b2864d9066d5e03ea`.
+2. Regression: **No issues found.** after F50–F52, reviewed `b780f6322472387482ec11c0a6f6d30fccbc580f`. Fresh native 255 passed/6 skipped, fresh WSL 251 passed/10 skipped, using the unchanged original long basetemp. Independent no-op/fresh-output/cd-failure LEaP controls, unchanged protonation files on rejection, unique long-path logs and bidirectional locks passed. Report `../review2_regression_after_F52.txt`; prior reports retain each found issue and failed evidence.
 3. Consistency/docs/version/CLI: pending.
 
 ## Open limitations and release state

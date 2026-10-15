@@ -15,11 +15,16 @@ default branch. The older 1.1.0 source-history entry below is retained; no remot
 - Repair supplied-parameter environment routing and Core 1→2 ligand staging;
   retain identity-safe mapping and the original PDB pose without QM/RESP.
 - Correct original-chain protonation selectors and PREPARED/PAUSED/resume states.
+- Reject changed protonation decisions after downstream input consumption;
+  require a new run instead of silently retaining stale topology/input caches.
 - Reject nonfinite charges, invalid explicit MOL2 connectivity and directly
   conflicting numeric bond orders; retain reviewed aromatic representations.
 - Harden pre-MD artifacts, exact stage coverage, stale-output invalidation,
   fatal stdout/stderr handling, first-bad-stage stop, split restart dependencies,
   and Windows launcher target/quoting/exit propagation. No MD ran for this release.
+- Prevent case-equivalent stage names from aliasing initial/previous restarts,
+  clear stale LEaP system outputs per attempt, and keep unique log basenames short
+  enough for the measured Windows path boundary without changing OS settings.
 - Make CLI errors/exits consistent, reject incomplete or mismatched run roots
   and unsupported nonzero retry counts, and preserve special-character paths.
 - Repair redaction, local docs provenance/transaction cleanup, and diagnosis/profile

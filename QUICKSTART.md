@@ -85,6 +85,11 @@ Use a new directory for `init`. After explicit protonation review, `prep-only`
 finishes at `PREPARED` (exit 0) without MD; a review pause exits 3, failure exits 2.
 Keep using `prep-only` for this endpoint because `resume` can launch MD. Nonzero
 `--max-retries` is unsupported; inspect failures before manual resume.
+Once solvation or later work has started/cached results, apply changed protonation
+decisions in a new run. The existing-run edit is rejected before any files change.
+Deliberate LEaP or selected pre-MD reruns replace their prior generated outputs;
+preserve results first. Custom pre-MD stage IDs are case-insensitively unique and
+cannot use the reserved initial restart name `system_lig_solv`.
 
 ---
 

@@ -8,8 +8,9 @@ at the authenticated pre-publication check; publication must recheck both.
 
 ## Repairs
 
-48 reproduced defects have separate repair commits and red/green records in
-[DEBUG_STATE.md](DEBUG_STATE.md): **1 P0, 38 P1, 9 P2**.
+52 reproduced defects have separate repair commits and red/green records in
+[DEBUG_STATE.md](https://github.com/ZiyanZhuang/CYPForge/blob/release/1.1/DEBUG_STATE.md):
+**1 P0, 41 P1, 10 P2**.
 
 - **P0:** repeated/concurrent initialization could reset an existing run (F01).
 - **P1, persistence:** atomic checkpoint/config/report commits, bounded retries
@@ -22,26 +23,29 @@ at the authenticated pre-publication check; publication must recheck both.
 - **P1, no-QM preparation:** route-aware environment checks, identity-preserving
   Core 1→2 ligand staging, original-chain protonation selection, finite supplied
   charges, actual MOL2 bond connectivity and explicit numeric bond-order conflict
-  checks (F08–F10, F37–F38, F40).
+  checks, and reject changed decisions after downstream inputs were consumed
+  (F08–F10, F37–F38, F40, F50).
 - **P1, execution:** preserve subprocess exit/log encoding and literal paths;
   harden script/launcher quoting, split targets/dependencies and exit codes;
   invalidate old selected outputs; stop at the first bad stage, including fatal
   stdout/stderr; resolve setup filenames and native Linux Bash correctly
-  (F07, F11, F24–F26, F31, F33–F34, F36, F39, F41–F42, F48).
+  (F07, F11, F24–F26, F31, F33–F34, F36, F39, F41–F42, F48–F49, F52).
 - **P2:** keep separate same-second logs; validate advisory protonation input;
   refresh docs provenance; close/rollback SQLite transactions; standardize CLI
   errors and missing-state exits; preserve custom split-stage names; explicitly
-  reject unsupported nonzero retry counts (F02, F20–F23, F29, F35, F43, F47).
+  reject unsupported nonzero retry counts; retain unique logs at the measured
+  Windows path boundary (F02, F20–F23, F29, F35, F43, F47, F51).
 
 No new dependencies, force-field/protocol changes, aromatic perception algorithm,
 software installation, or license changes were introduced.
 
 ## Regression and pressure evidence
 
-- Windows/Python 3.12.14: **244 passed, 6 skipped**.
-- WSL Ubuntu 24.04/Python 3.12.3: **241 passed, 9 skipped**.
+- Windows/Python 3.12.14: **255 passed, 6 skipped**.
+- WSL Ubuntu 24.04/Python 3.12.3: **251 passed, 10 skipped**.
 - Each suite has one existing legacy-wrapper deprecation warning. Six tests need
-  absent optional external fixtures; WSL also skips three native Windows cases.
+  absent optional external fixtures; WSL also skips four native Windows cases
+  (two launchers, cross-OS lock ownership and the Windows path-length boundary).
 - Original baseline: 97 passed, 6 skipped. Every repair ran its focused tests and
   the full native suite; the ledger records each intermediate result.
 - Native and WSL pressure each completed 600 checkpoint saves, 200 status calls,
@@ -77,11 +81,12 @@ installation. All runtime environment changes were process-local.
 
 Commands below are the portable form of the measured smoke. Set AMBER_SH to the
 existing WSL setup file and CYPFORGE_RUNS_DIR to a new writable run directory.
-The final measured run name was `final_4ejj  中文's {ligand_resname}`.
+The final measured run name was `final_4ejj  中文's {ligand_resname} reviewed`,
+using frozen source revision `b780f6322472387482ec11c0a6f6d30fccbc580f`.
 
 ```powershell
 $env:PYTHONPATH = "$PWD\src"
-$run = "final_4ejj  中文's {ligand_resname}"
+$run = "final_4ejj  中文's {ligand_resname} reviewed"
 python -B -m cypforge_core.cli init $run `
   --pdb benchmark/4EJJ/4EJJ_CPD1_NCT.pdb `
   --sdf benchmark/4EJJ/nicotine.sdf --heme-state CPDI `
@@ -133,10 +138,15 @@ check reported zero problems. These observations do not establish equilibration.
 - Config/checkpoint/requested run roots must agree. Copied/moved runs require
   explicit metadata and absolute-path reconciliation. Nonzero max_retries is
   rejected; failures must be reviewed before manual resume.
+- Applying protonation decisions after solvation or later work has started/cached
+  outputs is rejected before writes; changed decisions require a new run.
 - AMBER_SH is an exact WSL/POSIX setup filename; only AMBERHOME is a directory.
   Regenerate old pre-MD scripts for the new console/output checks. A selected
   rerun invalidates its previous stage outputs, consistent with the existing -O
   overwrite behavior; preserve results before deliberately rerunning them.
+- LEaP attempts clear only their three fixed generated system files before
+  execution, so an exit-0 no-op cannot validate stale artifacts. Custom stage IDs
+  must be case-insensitively unique and cannot be `system_lig_solv`.
 - Artifact JSON writes are atomic per file, not a transaction over every stage
   file. Retries are bounded to approximately 0.5 seconds; a persistently held
   file still fails explicitly and preserves the last committed target. Raw
@@ -152,8 +162,9 @@ check reported zero problems. These observations do not establish equilibration.
 
 ## Independent review gates
 
-1. Correctness: pending.
-2. Regression with a fresh full suite: pending.
+1. Correctness: **No issues found.**, after F49; independently reviewed `02dd4b8`.
+2. Regression with fresh native/WSL suites: **No issues found.**, after F50–F52;
+   independently reviewed `b780f63`, including the original long test directory.
 3. Consistency/docs/version/CLI: pending.
 
 Publication is gated on three sequential independent `No issues found.` results.

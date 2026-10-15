@@ -212,6 +212,9 @@ Ten stages, fixed order, enforced by `skills/cypforge/skills_manifest.json` and 
   Network filesystems have not been validated.
 - Config, checkpoint, and requested run roots must agree. Copied/moved runs need
   deliberate reconciliation of their metadata and absolute input paths.
+- Apply protonation decisions before downstream preparation consumes them.
+  If solvation or a later module has cached/started work, use a new run for new
+  decisions; `protonation apply` rejects the edit before changing files.
 - Execution exits: 0 for success/PREPARED, 1 for a missing run, 2 for failure or
   invalid state, 3 for a review pause. `--max-retries` supports only 0; inspect a
   failure before manual resume. `resume` can launch MD, so use `prep-only` for a
@@ -226,6 +229,9 @@ Ten stages, fixed order, enforced by `skills/cypforge/skills_manifest.json` and 
   capture both console streams, and stop on fatal diagnostics or missing/empty
   required outputs. Re-render old scripts to receive these checks. No generated
   script or unit-test result proves equilibration or production readiness.
+- Custom stage IDs must be unique without regard to case and cannot be
+  `system_lig_solv`, the reserved initial restart name. LEaP reruns also clear
+  their three fixed generated system files; preserve results before rerunning.
 
 ---
 
