@@ -449,7 +449,16 @@ def cmd_protonation_apply(args: argparse.Namespace) -> int:
     config = _load_config(args.run_name, str(run_root))
     if config is None:
         return 1
-    with CYPForgeOrchestrator(config).workflow.run_lock():
+    workflow = CYPForgeOrchestrator(config).workflow
+    with workflow.run_lock():
+        manifest = workflow.load_manifest()
+        if manifest is None:
+            raise FileNotFoundError(f"Run checkpoint is missing: {workflow.manifest_path}")
+        consumed = [module.skill_id for module in workflow.get_ordered_modules() if module.index >= 4
+                    and manifest.modules.get(module.skill_id, {}).get("status", "PENDING") not in {"PENDING", "FAIL"}]
+        if consumed:
+            raise ValueError("Protonation inputs were already consumed downstream; create a new run before changing them: "
+                             + ", ".join(consumed))
         return _apply_protonation(args, run_root)
 
 

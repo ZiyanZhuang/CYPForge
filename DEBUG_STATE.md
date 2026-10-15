@@ -423,6 +423,15 @@
 - Green: 45 artifact cases; full native regression **247 passed, 6 skipped**, one existing warning. The source input remains unchanged. Formal round 1 must re-review this fix before progressing.
 - Commit: `fix: prevent pre-MD stage outputs from aliasing restart inputs`.
 
+### F50 / P1: applying protonation after preparation retains stale downstream PASS caches
+
+- During regression review, a root-owned one-atom public CLI probe reapplied a valid GLU→GLH decision after six cached PASS modules. Apply rewrote the final PDB/config, but prep-only returned 0/PREPARED without rebuilding the previously consumed topology/inputs. No external tool or real benchmark state was altered.
+- Red: four public apply cases accepted downstream PASS/WARN/RUNNING/SKIPPED and changed files; PENDING/FAIL correction controls already succeeded (**4 failed, 2 passed**).
+- Root cause: apply checked writer ownership but not whether later modules had already consumed the inputs it was rewriting.
+- Fix: under the run lock, reject apply before any decision/PDB/config write when solvation or later modules have consumed/cached inputs; report exit 2 and require a new run. Initial apply and corrections of PENDING/FAIL downstream states remain supported. No automatic invalidation, regeneration or chemical-policy change is introduced.
+- Green: 21 CLI cases; full native regression **253 passed, 6 skipped**, one existing warning. Rejected cases preserve every run file byte-for-byte (apart from the persistent lock inode). Formal round 2 must re-review this fix.
+- Commit: `fix: reject protonation edits after downstream input consumption`.
+
 ## Module coverage
 
 All **11 requested module areas** explored and exercised. Real scientific preparation reached **6/10** fixed-order modules; remaining execution/audit/decision behavior used explicit simulations/static fixtures, never real MD.
