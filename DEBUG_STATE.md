@@ -124,6 +124,14 @@
 - Real smoke before this fix: init 0; prep without decision 3; recommend 0; apply 0; prep through actual LEaP/render 0. The bundled prepared PDB already contains target GLH/HID states, so explicitly approved selectors were applied idempotently (`A:GLH419=GLH`, `A:HID55/299/386=HID`). No unapproved renames occurred.
 - Commit: `fix: keep preparation checkpoints distinct and resumable`.
 
+### F13 / P1: decision layer allows extension after failed or unknown audit
+
+- Red: 5 direct decision cases initially failed; lowercase `failed`, unknown status, and failed child gates produced ALLOW, while a list root crashed.
+- Root cause: the decision function independently compared only uppercase FAIL/WARN and treated every other status as success, bypassing normalized manifest gate semantics.
+- Fix: reuse the shared GateChecker status interpretation; malformed/unreadable audits become STOP, and child state aliases are handled consistently. Existing decision names, scientific thresholds, and downstream permissions are unchanged.
+- Green: 18 gate/decision tests; full native regression **134 passed, 6 skipped**, one existing warning.
+- Commit: `fix: normalize audit gates before equilibration decisions`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

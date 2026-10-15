@@ -233,22 +233,30 @@ def make_equilibration_decision(run_root: str) -> None:
             "next_allowed_action": "Re-run pre-MD or fix upstream modules.",
         }
     else:
-        data = json.loads(audit_manifest_path.read_text(encoding="utf-8"))
-        status = data.get("status", "FAIL")
+        try:
+            data = json.loads(audit_manifest_path.read_text(encoding="utf-8-sig"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            data = {"status": "FAIL"}
+        if not isinstance(data, dict):
+            data = {"status": "FAIL"}
+        checker = GateChecker(run_root)
+        status = checker._extract_status(data)
         gate_results = data.get("gate_results", [])
+        if not isinstance(gate_results, list):
+            gate_results = []
 
         # Map failures to decision states
-        failed_gates = [g for g in gate_results if g.get("status") == "FAIL"]
-        warned_gates = [g for g in gate_results if g.get("status") == "WARN"]
+        failed_gates = [g for g in gate_results if isinstance(g, dict) and checker._extract_status(g) == "FAIL"]
+        warned_gates = [g for g in gate_results if isinstance(g, dict) and checker._extract_status(g) == "WARN"]
 
         if status == "FAIL" or failed_gates:
             # Determine which core to fix based on failed gate names
             decision = _map_failure_to_stop(failed_gates)
-            reason = f"Failed gates: {', '.join(g.get('name', '-') for g in failed_gates)}"
+            reason = f"Audit status={status}; failed gates: {', '.join(str(g.get('name', '-')) for g in failed_gates)}"
             next_action = "Fix the identified upstream module and re-run."
         elif status == "WARN" or warned_gates:
             decision = "WARN_HUMAN_REVIEW"
-            reason = f"Warning gates require review: {', '.join(g.get('name', '-') for g in warned_gates)}"
+            reason = f"Warning gates require review: {', '.join(str(g.get('name', '-')) for g in warned_gates)}"
             next_action = "Review warnings. If acceptable, allow 1-5 ns extended equilibration."
         else:
             decision = "ALLOW_1_5_NS_FREE_EQUILIBRATION"
@@ -271,7 +279,7 @@ def make_equilibration_decision(run_root: str) -> None:
 def _map_failure_to_stop(failed_gates: list[dict[str, Any]]) -> str:
     """Map failed gate names to STOP_FIX_* decision states."""
     for gate in failed_gates:
-        name = gate.get("name", "")
+        name = str(gate.get("name", ""))
         name_lower = name.lower()
         # Environment / tooling failures must be classified before the
         # generic STOP_FIX_PRE_MD fallback, otherwise a missing Amber binary
