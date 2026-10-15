@@ -286,12 +286,22 @@ def build_module_definitions() -> list[ModuleDef]:
             output_dir_rel="10_ligand_gpu4pyscf_esp",
             steps=[
                 StepDef(
+                    name="stage_prepared_ligand_complex",
+                    kind="python_inline",
+                    description="Combine the prepared host with the confirmed ligand pose without changing coordinates",
+                    command_template=(
+                        "from cypforge_core.orchestrator.staging import stage_prepared_ligand_complex;"
+                        " stage_prepared_ligand_complex({run_root}, {ligand_resname}, {ligand_chain})"
+                    ),
+                    timeout_seconds=60,
+                ),
+                StepDef(
                     name="ligand_gpu4pyscf_esp",
                     kind="python_script",
                     description="Run GPU4PySCF/Multiwfn RESP charge fitting",
                     command_template=(
                         "cypforge module ligand prepare"
-                        ' --complex-pdb "{run_root}/01_heme_only/prepared_heme_complex.pdb"'
+                        ' --complex-pdb "{run_root}/10_ligand_gpu4pyscf_esp/prepared_ligand_complex.pdb"'
                         ' --ligand-template-sdf "{ligand_template_sdf}"'
                         ' --supplied-mol2 "{supplied_ligand_mol2}"'
                         ' --supplied-frcmod "{supplied_ligand_frcmod}"'
@@ -313,7 +323,7 @@ def build_module_definitions() -> list[ModuleDef]:
                     description="Build ligand-aware LEaP mapping input",
                     command_template=(
                         "cypforge module ligand leap"
-                        ' --complex-pdb "{run_root}/01_heme_only/prepared_heme_complex.pdb"'
+                        ' --complex-pdb "{run_root}/10_ligand_gpu4pyscf_esp/prepared_ligand_complex.pdb"'
                         ' --prepare-report-json "{run_root}/01_heme_only/prepare_report.json"'
                         ' --ligand-mol2 "{run_root}/10_ligand_gpu4pyscf_esp/{ligand_resname}_multiwfn_resp.mol2"'
                         ' --ligand-frcmod "{run_root}/10_ligand_gpu4pyscf_esp/{ligand_resname}.frcmod"'
@@ -332,6 +342,7 @@ def build_module_definitions() -> list[ModuleDef]:
             ],
             required_input_files=["{ligand_template_sdf}"],
             output_manifests=[
+                "10_ligand_gpu4pyscf_esp/complex_pose_staging_manifest.json",
                 "10_ligand_gpu4pyscf_esp/ligand_parameterization_gate.json",
                 "13_ligand_mapping_leapin/ligand_mapping_leapin_manifest.json",
             ],
@@ -521,7 +532,7 @@ def build_module_definitions() -> list[ModuleDef]:
                     description="Read global audit manifest and produce decision state",
                     command_template=(
                         "from cypforge_core.orchestrator.gates import make_equilibration_decision;"
-                        ' make_equilibration_decision(r"{run_root}")'
+                        ' make_equilibration_decision({run_root})'
                     ),
                     timeout_seconds=30,
                 ),
@@ -544,7 +555,7 @@ def build_module_definitions() -> list[ModuleDef]:
                     description="Validate production readiness evidence",
                     command_template=(
                         "from cypforge_core.orchestrator.gates import make_production_readiness_check;"
-                        ' make_production_readiness_check(r"{run_root}")'
+                        ' make_production_readiness_check({run_root})'
                     ),
                     timeout_seconds=30,
                 ),

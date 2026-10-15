@@ -99,6 +99,14 @@
 - Green: 2 route tests; full native regression **123 passed, 6 skipped**. Real smoke now passes environment and Core 1, then detects a separate missing-ligand input-routing defect in Core 2 (next issue).
 - Commit: `fix: probe tools required by the selected ligand route`.
 
+### F10 / P1: Core 2 receives a ligand-free Core-1 host
+
+- Red: real bundled no-QM Core1→Core2 public workflow test failed; Core 1 intentionally drops non-host/non-heme residues, while both Core-2 commands incorrectly consumed that ligand-free file. Real smoke reported `No NCT chain ... atoms found`.
+- Root cause: missing orchestration staging between the prepared host and confirmed ligand pose. Simply using the raw PDB would lose Core-1 heme/CYM preparation and confirmed trimming.
+- Fix: one audited orchestration staging step reuses existing ligand extraction/PDB writers, preserves all prepared host coordinates, and appends exactly one selected ligand identity from Core 1's effective input. Both Core-2 consumers use this staged file. Source checksums/counts are manifested; protonation keeps the original prepared-host numbering source. New inline-call values are Python literals via `repr`; existing two inline consumers updated accordingly.
+- Green: real no-QM workflow test passed; full native regression **124 passed, 6 skipped**. Independent analysis also verified 7581 host + 26 ligand atoms, ligand heavy-pose RMSD 0, and 465 consistent protein-residue mappings. No chemistry algorithm or heme/CYM preparation policy changed.
+- Commit: `fix: stage the confirmed ligand with the prepared Core-1 host`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

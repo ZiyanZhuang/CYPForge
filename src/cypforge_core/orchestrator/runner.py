@@ -35,7 +35,9 @@ def _format_cmd(template: str, values: dict[str, Any], kind: str = "python_scrip
       ``shlex.quote()`` to defang spaces, quotes, ``$``, backticks, ``;``, ``&``,
       etc. The literal template text (``--flag`` names, separators) is left
       verbatim because it must remain shell-interpretable.
-    * ``"python_script"`` / ``"python_inline"`` (default): the result is
+    * ``"python_inline"``: values become Python string literals via ``repr``.
+      Templates supply bare placeholders, consumed by ``python -c``.
+    * ``"python_script"`` (default): the result is
       tokenized by ``_parse_command`` and handed to ``subprocess.run`` as an
       argv list with ``shell=False``. Argv items are not re-interpreted by any
       shell, so substituted values are not quoted (quoting would leak literal
@@ -80,7 +82,9 @@ def _format_cmd(template: str, values: dict[str, Any], kind: str = "python_scrip
         # contributed by earlier substitutions. Empty values stay empty.
         if val_str and sys.platform != "win32":
             val_str = val_str.replace("\\", "/")
-        if quote_values and val_str:
+        if kind == "python_inline":
+            replacement = repr(val_str)
+        elif quote_values and val_str:
             # Empty values stay bare: shlex.quote("") returns "''" which would
             # inject an empty bash token. The matching --flag/{key} pair was
             # already stripped by the empty-flag pass above for blanks.

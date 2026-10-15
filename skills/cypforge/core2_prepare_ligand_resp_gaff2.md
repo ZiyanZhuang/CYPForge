@@ -36,6 +36,13 @@ project_root
 
 ## Commands
 
+The orchestrator first stages `10_ligand_gpu4pyscf_esp/prepared_ligand_complex.pdb`:
+the unchanged Core-1 host plus the explicitly selected ligand from Core 1's
+effective input PDB (including confirmed trimming). Both Core-2 commands use
+this same staged complex; protonation numbering still uses the Core-1 prepared
+host. `complex_pose_staging_manifest.json` records source checksums and atom
+counts. This staging changes atom serials only; SDF supplies ligand chemistry.
+
 Supplied-parameter path; this validates the files and does not run QM/ESP/RESP:
 
 ```powershell

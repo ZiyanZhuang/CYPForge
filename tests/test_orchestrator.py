@@ -478,10 +478,10 @@ def test_supplied_ligand_parameters_reject_wrong_complex_pose(tmp_path):
 
 
 def test_core2_command_renders_supplied_parameters_only_when_configured():
-    step = get_module_by_skill_id("cypforge.core2_prepare_ligand_resp_gaff2").steps[0]
+    step = next(step for step in get_module_by_skill_id("cypforge.core2_prepare_ligand_resp_gaff2").steps if step.name == "ligand_gpu4pyscf_esp")
     base = RunConfig(run_name="base", run_root=FAKE_RUN_ROOT, project_root=FAKE_PROJECT_ROOT)
     base_command = _format_cmd(step.command_template, ModuleRunner(base)._resolve_values())
-    assert f'--complex-pdb "{FAKE_RUN_ROOT}/01_heme_only/prepared_heme_complex.pdb"' in base_command
+    assert f'--complex-pdb "{FAKE_RUN_ROOT}/10_ligand_gpu4pyscf_esp/prepared_ligand_complex.pdb"' in base_command
     assert "--complex-pdb {raw_protein_heme_pdb}" not in step.command_template
     assert "--supplied-mol2" not in base_command
     assert "--supplied-frcmod" not in base_command
