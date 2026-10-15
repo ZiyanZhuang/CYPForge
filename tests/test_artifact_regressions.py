@@ -225,7 +225,9 @@ def test_pre_md_rerun_cannot_reuse_previous_stage_outputs(solvation_outputs, tmp
     assert not (output / first["output_restart"]).exists()
 
 
-@pytest.mark.parametrize("bad_output, expected_calls", [("fatal", 1), ("empty_restart", 1), ("empty_trajectory", 5)])
+@pytest.mark.parametrize("bad_output, expected_calls", [
+    ("fatal", 1), ("empty_restart", 1), ("empty_trajectory", 5), ("fatal_stderr", 1), ("fatal_stdout", 1),
+])
 def test_pre_md_script_stops_at_first_bad_stage_output(solvation_outputs, tmp_path, bad_output, expected_calls):
     manifest, _ = solvation_outputs
     output = tmp_path / "stop early"
@@ -249,6 +251,8 @@ owned_fake_engine() {
     printf 'fake restart\\n' > "$restart"
     if [ -n "$trajectory" ]; then printf 'fake trajectory\\n' > "$trajectory"; fi
     if [ "$OWNED_BAD_OUTPUT" = fatal ]; then printf 'FATAL test diagnostic\\n' >> "$mdout"; fi
+    if [ "$OWNED_BAD_OUTPUT" = fatal_stderr ]; then printf 'CUDA ERROR: illegal memory access\\n' >&2; fi
+    if [ "$OWNED_BAD_OUTPUT" = fatal_stdout ]; then printf 'CUDA ERROR: illegal memory access\\n'; fi
     if [ "$OWNED_BAD_OUTPUT" = empty_restart ]; then : > "$restart"; fi
     if [ "$OWNED_BAD_OUTPUT" = empty_trajectory ] && [ -n "$trajectory" ]; then : > "$trajectory"; fi
     return 0
@@ -259,6 +263,16 @@ export AMBER_ENGINE=owned_fake_engine
     probe = _bash_probe(f"cd {shlex.quote(directory)}\nexport OWNED_BAD_OUTPUT={bad_output}\n" + fake + script)
     assert probe.returncode == 6
     assert len((output / "owned_engine_calls.txt").read_text(encoding="utf-8").splitlines()) == expected_calls
+
+
+@pytest.mark.parametrize("stream", ["stdout_log", "stderr_log"])
+def test_pre_md_validator_independently_checks_captured_console_logs(pre_md_outputs, stream):
+    manifest, _ = pre_md_outputs
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["stages"][0][stream] = f"01_probe.{stream}.log"
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+    (manifest.parent / "run" / data["stages"][0][stream]).write_text("CUDA ERROR: illegal memory access\n", encoding="utf-8")
+    assert validate_complex_pre_md_run(pre_md_manifest_json=manifest)["status"] == "fail"
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows launcher boundary")

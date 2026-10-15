@@ -1303,6 +1303,8 @@ def test_pre_md_validator_ignores_benign_error_word_and_script_stops_on_missing_
             "mdin": str(tmp_path / "01_min.in"),
             "input_restart": "system_lig_solv.rst7",
             "output_restart": "01_min.rst7",
+            "stdout_log": "01_min.stdout.log",
+            "stderr_log": "01_min.stderr.log",
             "trajectory": None,
             "reference_restart": None,
         }],

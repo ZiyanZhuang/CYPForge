@@ -338,6 +338,8 @@ def prepare_complex_pre_md_equilibration(
                 "output_restart": output_restart,
                 "reference_restart": reference,
                 "trajectory": output_traj,
+                "stdout_log": f"{stage_id}.stdout.log",
+                "stderr_log": f"{stage_id}.stderr.log",
                 "uses_position_restraints": int(stage["parameters"].get("ntr", 0)) == 1,
                 "iwrap": stage["parameters"].get("iwrap"),
                 "restraint_wt": stage["parameters"].get("restraint_wt"),
@@ -495,7 +497,11 @@ def validate_complex_pre_md_run(
         )
         if not artifact_identity_matches:
             reasons.append(f"Stage {stage_id} status paths do not match its declared artifacts")
-        fatal_count = _fatal_keyword_count(mdout)
+        console_logs = [run_dir / str(expected[key]) for key in ("stdout_log", "stderr_log") if expected.get(key)]
+        for path in console_logs:
+            if not path.is_file():
+                reasons.append(f"Stage {stage_id} console log missing: {path}")
+        fatal_count = _fatal_keyword_count(mdout) + sum(_fatal_keyword_count(path) for path in console_logs)
         normal_end = bool(observed.get("normal_end")) and is_nonempty_file(mdout) and bool(re.search(
             r"Total wall time|Final Performance Info", mdout.read_text(encoding="utf-8", errors="replace"),
         ))
@@ -505,7 +511,7 @@ def validate_complex_pre_md_run(
         if not normal_end:
             reasons.append(f"Stage {stage_id} lacks normal-end marker")
         if fatal_count:
-            reasons.append(f"Stage {stage_id} mdout contains {fatal_count} fatal keyword(s)")
+            reasons.append(f"Stage {stage_id} output/logs contain {fatal_count} fatal keyword(s) or missing logs")
         restart_exists = is_nonempty_file(restart)
         if not restart_exists:
             reasons.append(f"Stage {stage_id} restart missing or empty: {restart}")
@@ -522,6 +528,7 @@ def validate_complex_pre_md_run(
             "exit_code": rc,
             "normal_end": normal_end,
             "fatal_keyword_count": fatal_count,
+            "console_logs": [str(path) for path in console_logs],
             "mdout": str(mdout),
             "restart": str(restart),
             "restart_exists": restart_exists,
@@ -719,8 +726,10 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
         outputs = [f"run/{stage['id']}.out", f"run/{stage['id']}.info", stage["output_restart"]]
         if stage["trajectory"]:
             outputs.append(f"run/{stage['trajectory']}")
+        stdout_log = "run/" + stage["stdout_log"]
+        stderr_log = "run/" + stage["stderr_log"]
         invalid_output = (
-            f"grep -Eiq -- {shlex.quote('|'.join(_FATAL_PATTERNS))} run/{stage['id']}.out"
+            f"grep -Eiq -- {shlex.quote('|'.join(_FATAL_PATTERNS))} run/{stage['id']}.out {shlex.quote(stdout_log)} {shlex.quote(stderr_log)}"
             f" || [ ! -s {shlex.quote(stage['output_restart'])} ]"
         )
         if stage["trajectory"]:
@@ -743,9 +752,11 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
             [
                 "rm -f -- " + " ".join(shlex.quote(path) for path in outputs),
                 "set +e",
-                " ".join(args),
+                " ".join(args) + f" > {shlex.quote(stdout_log)} 2> {shlex.quote(stderr_log)}",
                 "rc=$?",
                 "set -e",
+                f"cat -- {shlex.quote(stdout_log)}",
+                f"cat -- {shlex.quote(stderr_log)} >&2",
                 "normal_end=0",
                 f"grep -Eq 'Total wall time|Final Performance Info' run/{stage['id']}.out 2>/dev/null && normal_end=1",
                 f"printf '{stage['id']}\\trun/{stage['id']}.out\\t{stage['output_restart']}\\t%s\\t%s\\n' \"$rc\" \"$normal_end\" >> run/stage_status.tsv",

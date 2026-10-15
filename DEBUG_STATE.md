@@ -332,6 +332,14 @@
 - Green: 9 supplied-contract cases, including nonsequential atom IDs and bundled ar/Kekulé input; full native regression **213 passed, 6 skipped**, one existing warning. Bond-order/aromatic equivalence is a separate check, not claimed by this connectivity result.
 - Commit: `fix: check explicit supplied MOL2 connectivity against the SDF`.
 
+### F39 / P1: fatal engine console output is ignored
+
+- Red: fake engine stdout/stderr each emitted CUDA ERROR/illegal memory access with exit 0 and normal mdout; both scripts continued. Two independent console-log validator cases also falsely passed (4 failed cases).
+- Root cause: fatal scanning covered only mdout, although documented hard-stop messages can occur on either process stream.
+- Fix: capture per-stage stdout/stderr, replay both to the orchestrator logs, declare their filenames in new manifests, and scan all three outputs with the shared matcher before proceeding. Independent validation reads the declared logs and rejects missing logs. Legacy manifests without declared console logs remain readable.
+- Green: 42 artifact cases plus updated renderer fixture; full native regression **217 passed, 6 skipped**, one existing warning. Both console-fatal scripts stop after the first fake stage, exit 6.
+- Commit: `fix: gate pre-MD engine stdout and stderr diagnostics`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
