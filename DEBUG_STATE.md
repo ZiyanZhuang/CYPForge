@@ -74,6 +74,14 @@
 - Green: 13 focused cases passed; full native regression **118 passed, 6 skipped**, one existing warning. No chemical thresholds changed.
 - Commit: `fix: fail closed on malformed and conflicting gate manifests`.
 
+### F07 / P1: host log decoding misreports completed WSL/Python steps
+
+- Red: real WSL `printf` returned FAIL with `data must be str, not NoneType`; native non-UTF8 subprocess test lost exit code 7 (recorded None), with GBK reader-thread UnicodeDecodeError.
+- Root cause: subprocess text decoding inherited the Windows locale; WSL startup diagnostics contain mixed encodings and child programs may emit non-UTF8 bytes. Reader failure caused missing output strings before exit-code persistence.
+- Fix: explicit UTF-8 with replacement on all three runner subprocess boundaries (Python script, WSL, Python inline), preserving logs and return code even for undecodable bytes.
+- Green: 3 runner tests; full native regression **119 passed, 6 skipped**, one existing warning; real WSL `printf` **PASS, exit 0**, both logs exist. Mixed-encoding warning bytes may display replacement characters; no command success is inferred from log decoding.
+- Commit: `fix: preserve subprocess results across output encoding errors`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

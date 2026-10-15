@@ -37,3 +37,20 @@ def test_repeated_step_keeps_both_attempt_logs(tmp_path, monkeypatch):
     assert Path(first.stdout_path).read_text(encoding="utf-8").strip() == "42"
     assert Path(second.stdout_path).read_text(encoding="utf-8").strip() == "43"
     assert len(list(tmp_path.glob("*_command.txt"))) == 2
+
+
+def test_runner_preserves_exit_code_and_logs_with_non_utf8_output(tmp_path):
+    script = tmp_path / "emit_bytes.py"
+    script.write_text(
+        "import sys\nsys.stdout.buffer.write(b'\\xff\\xfeA\\x00')\n"
+        "sys.stderr.buffer.write(b'FATAL \\xff\\n')\nsys.exit(7)\n",
+        encoding="utf-8",
+    )
+    runner = ModuleRunner(RunConfig("encoding", str(tmp_path), str(tmp_path)))
+
+    record = runner.run_step(StepDef("probe", "python_script", command_template="python emit_bytes.py"), tmp_path / "logs")
+
+    assert record.status == "FAIL"
+    assert record.exit_code == 7
+    assert Path(record.stdout_path).is_file()
+    assert "FATAL" in Path(record.stderr_path).read_text(encoding="utf-8")

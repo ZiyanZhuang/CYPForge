@@ -253,6 +253,8 @@ class ModuleRunner:
                 cwd=str(self.project_root),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 env=env,
                 timeout=timeout,
             )
@@ -321,6 +323,8 @@ class ModuleRunner:
                 cwd=str(self.project_root),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 shell=False,
                 timeout=timeout,
             )
@@ -362,6 +366,8 @@ class ModuleRunner:
                 cwd=str(self.project_root),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 env=env,
                 timeout=timeout,
             )
