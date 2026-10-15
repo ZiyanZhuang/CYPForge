@@ -272,6 +272,7 @@ def make_equilibration_decision(run_root: str) -> None:
             "warned_gate_count": len(warned_gates),
         }
 
+    state["status"] = "FAIL" if state["decision"].startswith("STOP_") else "WARN" if state["decision"] == "WARN_HUMAN_REVIEW" else "PASS"
     write_json(decision_path, state)
     print(json.dumps(state, indent=2, ensure_ascii=False))
 
@@ -348,5 +349,8 @@ def make_production_readiness_check(run_root: str) -> None:
                 "production_authorized": False,
             }
 
+    state["status"] = {
+        "READY_FOR_PRODUCTION_SETUP": "PASS", "NOT_READY_NEEDS_HUMAN_REVIEW": "WARN",
+    }.get(state["state"], "FAIL")
     write_json(output_path, state)
     print(json.dumps(state, indent=2, ensure_ascii=False))

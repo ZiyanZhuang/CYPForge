@@ -132,6 +132,14 @@
 - Green: 18 gate/decision tests; full native regression **134 passed, 6 skipped**, one existing warning.
 - Commit: `fix: normalize audit gates before equilibration decisions`.
 
+### F14 / P1: final decision/readiness manifests cannot satisfy their gate contract
+
+- Red: six cases failed, one passed incidentally; both producers omitted `status`, making PASS/WARN decisions fail the registered output gate. Readiness failure outputs also lacked their explicit status.
+- Root cause: producer/consumer schema mismatch at workflow stages 8/9.
+- Fix: emit canonical status matching existing documented decision semantics: STOP→FAIL, human review→WARN, allowed decision→PASS; readiness remains FAIL without required extended equilibration, WARN for review, PASS only for setup-ready state. `production_authorized` remains false in every state.
+- Green: 25 gate/decision/readiness cases; full native regression **141 passed, 6 skipped**, one existing warning. No new route to production MD.
+- Commit: `fix: publish canonical gate status in decision manifests`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
