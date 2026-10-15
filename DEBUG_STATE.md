@@ -292,6 +292,14 @@
 - Green: 32 artifact cases; full native regression **198 passed, 6 skipped**, one existing warning.
 - Commit: `fix: reject documented fatal pre-MD diagnostics`.
 
+### F34 / P1: pre-MD continues after a stage has invalid outputs
+
+- Red: real Bash with owned fake engines returned 0 and ran later stages despite an already recognized FATAL message, empty restart, or empty MD trajectory (3 failed cases).
+- Root cause: stage continuation checked only engine exit and normal-end text; independent validation happened after all stages.
+- Fix: the generated script uses the same fatal signatures as the validator and requires nonempty restart/trajectory before continuing. First invalid output exits 6 and records a failed run. No force-field/protocol parameter changes.
+- Green: 35 artifact cases; full native regression **201 passed, 6 skipped**, one existing warning. Fatal/empty-restart probes stop after stage 1, empty-trajectory after stage 5; all executables are harmless shell fakes.
+- Commit: `fix: stop pre-MD at the first invalid stage output`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

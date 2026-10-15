@@ -657,29 +657,31 @@ def _safe_int(value: Any) -> int | None:
         return None
 
 
+_FATAL_PATTERNS = [
+    r"\bfatal\b",
+    r"\bnan\b",
+    r"\bvlimit\b",
+    r"shake failure",
+    r"segmentation fault",
+    r"illegal memory access",
+    r"forrtl: severe",
+    r"cuda error",
+    r"cannot open",
+    r"unit [0-9]+ error",
+    r"error termination",
+    r"Ewald bomb",
+    r"PME error",
+    r"abnormal termination",
+    r"missing restraint reference",
+    r"cannot find (inpcrd|prmtop)",
+]
+
+
 def _fatal_keyword_count(path: Path) -> int:
     if not path.is_file():
         return 1
     text = path.read_text(encoding="utf-8", errors="replace")
-    patterns = [
-        r"\bfatal\b",
-        r"\bnan\b",
-        r"\bvlimit\b",
-        r"shake failure",
-        r"segmentation fault",
-        r"illegal memory access",
-        r"forrtl: severe",
-        r"cuda error",
-        r"cannot open",
-        r"unit \d+ error",
-        r"error termination",
-        r"Ewald bomb",
-        r"PME error",
-        r"abnormal termination",
-        r"missing restraint reference",
-        r"cannot find (?:inpcrd|prmtop)",
-    ]
-    return sum(len(re.findall(pattern, text, flags=re.I)) for pattern in patterns)
+    return sum(len(re.findall(pattern, text, flags=re.I)) for pattern in _FATAL_PATTERNS)
 
 
 def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> str:
@@ -722,6 +724,12 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
         outputs = [f"run/{stage['id']}.out", f"run/{stage['id']}.info", stage["output_restart"]]
         if stage["trajectory"]:
             outputs.append(f"run/{stage['trajectory']}")
+        invalid_output = (
+            f"grep -Eiq -- {shlex.quote('|'.join(_FATAL_PATTERNS))} run/{stage['id']}.out"
+            f" || [ ! -s {shlex.quote(stage['output_restart'])} ]"
+        )
+        if stage["trajectory"]:
+            invalid_output += f" || [ ! -s {shlex.quote('run/' + stage['trajectory'])} ]"
         args = [
             '"$AMBER_ENGINE"',
             "-O",
@@ -756,6 +764,12 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
                 "  echo 5 > run/run_pre_md.exit_code.txt",
                 "  date -Is > run/run_pre_md.finished_at.txt",
                 "  exit 5",
+                "fi",
+                f"if {invalid_output}; then",
+                f"  echo 'ERROR: Stage {stage['id']} has fatal diagnostics or missing/empty outputs.' >&2",
+                "  echo 6 > run/run_pre_md.exit_code.txt",
+                "  date -Is > run/run_pre_md.finished_at.txt",
+                "  exit 6",
                 "fi",
             ]
         )

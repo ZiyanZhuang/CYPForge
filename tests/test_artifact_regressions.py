@@ -210,6 +210,42 @@ def test_pre_md_rerun_cannot_reuse_previous_stage_outputs(solvation_outputs, tmp
     assert not (output / first["output_restart"]).exists()
 
 
+@pytest.mark.parametrize("bad_output, expected_calls", [("fatal", 1), ("empty_restart", 1), ("empty_trajectory", 5)])
+def test_pre_md_script_stops_at_first_bad_stage_output(solvation_outputs, tmp_path, bad_output, expected_calls):
+    manifest, _ = solvation_outputs
+    output = tmp_path / "stop early"
+    prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, output_dir=output)
+    script = (output / "run_pre_md.sh").read_text(encoding="utf-8")
+    directory = _win_to_wsl(output) if sys.platform == "win32" else str(output)
+    fake = """
+cpptraj() { cat >/dev/null; printf '1 frames\\n'; }
+owned_fake_engine() {
+    local mdout='' restart='' trajectory=''
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -o) mdout="$2"; shift 2;;
+            -r) restart="$2"; shift 2;;
+            -x) trajectory="$2"; shift 2;;
+            *) shift;;
+        esac
+    done
+    printf '%s\\n' "$mdout" >> owned_engine_calls.txt
+    printf 'Final Performance Info\\n' > "$mdout"
+    printf 'fake restart\\n' > "$restart"
+    if [ -n "$trajectory" ]; then printf 'fake trajectory\\n' > "$trajectory"; fi
+    if [ "$OWNED_BAD_OUTPUT" = fatal ]; then printf 'FATAL test diagnostic\\n' >> "$mdout"; fi
+    if [ "$OWNED_BAD_OUTPUT" = empty_restart ]; then : > "$restart"; fi
+    if [ "$OWNED_BAD_OUTPUT" = empty_trajectory ] && [ -n "$trajectory" ]; then : > "$trajectory"; fi
+    return 0
+}
+export -f cpptraj owned_fake_engine
+export AMBER_ENGINE=owned_fake_engine
+"""
+    probe = _bash_probe(f"cd {shlex.quote(directory)}\nexport OWNED_BAD_OUTPUT={bad_output}\n" + fake + script)
+    assert probe.returncode == 6
+    assert len((output / "owned_engine_calls.txt").read_text(encoding="utf-8").splitlines()) == expected_calls
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows launcher boundary")
 def test_windows_launcher_propagates_script_failure_without_running_md(solvation_outputs, tmp_path):
     powershell = shutil.which("pwsh")
