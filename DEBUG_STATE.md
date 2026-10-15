@@ -340,6 +340,14 @@
 - Green: 42 artifact cases plus updated renderer fixture; full native regression **217 passed, 6 skipped**, one existing warning. Both console-fatal scripts stop after the first fake stage, exit 6.
 - Commit: `fix: gate pre-MD engine stdout and stderr diagnostics`.
 
+### F40 / P1: explicit supplied numeric bond orders can contradict SDF
+
+- Red: two unchanged-coordinate MOL2 cases changed a mapped bond to explicit triple order while SDF declared single; both were accepted.
+- Root cause: connectivity matching alone did not compare explicit numerical bond orders.
+- Fix: reject contradictions when both sources explicitly give 1/2/3. Preserve the existing ar/Kekulé supplied-parameter representation without adding aromatic perception/conversion or changing mapping. Manifest reports comparison count and explicitly states aromatic equivalence is not re-perceived and still relies on reviewed input.
+- Green: 11 supplied-contract cases; full native regression **219 passed, 6 skipped**, one existing warning. Bundled positive retains 21 directly comparable numeric bonds and 6 reviewed ar bonds.
+- Commit: `fix: reject explicit supplied numeric bond-order conflicts`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

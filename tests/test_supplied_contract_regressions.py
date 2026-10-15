@@ -53,6 +53,19 @@ def test_supplied_mol2_checks_its_actual_bond_connectivity(supplied_contract, co
         stage_supplied_ligand_parameters(**supplied_contract)
 
 
+@pytest.mark.parametrize("bond_offset", [0, 3])
+def test_supplied_mol2_rejects_explicit_numeric_bond_order_conflicts(supplied_contract, bond_offset):
+    mol2 = supplied_contract["supplied_mol2"]
+    lines = mol2.read_text(encoding="utf-8").splitlines()
+    row = lines.index("@<TRIPOS>BOND") + 1 + bond_offset
+    fields = lines[row].split()
+    fields[3] = "3"
+    lines[row] = " ".join(fields)
+    mol2.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="bond order"):
+        stage_supplied_ligand_parameters(**supplied_contract)
+
+
 @pytest.mark.parametrize("duplicate", [False, True])
 def test_supplied_bond_mapping_uses_unique_explicit_atom_ids(supplied_contract, duplicate):
     mol2 = supplied_contract["supplied_mol2"]

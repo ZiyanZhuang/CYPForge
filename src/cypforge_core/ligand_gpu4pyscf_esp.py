@@ -449,6 +449,13 @@ def stage_supplied_ligand_parameters(
         supplied_bonds[edge] = fields[3].lower()
     if set(supplied_bonds) != set(expected_bonds):
         raise ValueError("Supplied MOL2 BOND connectivity does not match the mapped ligand SDF graph.")
+    numeric_bonds_compared = 0
+    for edge, order in supplied_bonds.items():
+        if order in {"1", "2", "3"} and expected_bonds[edge] in {1, 2, 3}:
+            numeric_bonds_compared += 1
+            if int(order) != expected_bonds[edge]:
+                raise ValueError(f"Supplied MOL2 bond order conflicts with the ligand SDF at {edge}.")
+    # shortcut: aromatic/Kekule equivalence remains reviewed input; use a dedicated chemistry audit if needed.
 
     extracted_pdb = out / f"{ligand_resname}_from_confirmed_complex.pdb"
     extract_ligand_from_complex_pdb(
@@ -512,6 +519,11 @@ def stage_supplied_ligand_parameters(
         "sdf_mol2_graph_check": "passed",
         "supplied_mol2_bond_connectivity_check": "passed",
         "supplied_mol2_bond_count": len(supplied_bonds),
+        "supplied_mol2_bond_order_check": {
+            "numeric_bonds_compared": numeric_bonds_compared,
+            "numeric_conflicts": "none",
+            "aromatic_equivalence": "not_reperceived; relies on reviewed supplied parameters",
+        },
         "sdf_mol2_mapping": sdf_mapping,
         "confirmed_complex_ligand_pdb": str(extracted_pdb),
         "complex_pose_check": {
