@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import errno
 import json
 import math
 import os
 import tempfile
+import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -22,6 +24,24 @@ def sha256_file(path: Path) -> str:
 
 
 # structured write
+
+def _retry_shared_file_access(operation: Callable[[], Any]) -> Any:
+    for attempt in range(50):
+        try:
+            return operation()
+        except OSError as exc:
+            # Windows readers and WSL DrvFS can briefly obstruct atomic replacement.
+            transient = getattr(exc, "winerror", None) in {5, 32, 33} or exc.errno in {
+                errno.ENOENT, errno.EACCES, getattr(errno, "ENODATA", 61), 61,
+            }
+            if not transient or attempt == 49:
+                raise
+            time.sleep(0.01)
+
+
+def read_json(path: Path) -> Any:
+    text = _retry_shared_file_access(lambda: path.read_text(encoding="utf-8-sig"))
+    return json.loads(text)
 
 def is_nonempty_file(path: Path) -> bool:
     try:
@@ -46,7 +66,7 @@ def write_text(path: Path, text: str) -> None:
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        _retry_shared_file_access(lambda: os.replace(temporary, path))
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)

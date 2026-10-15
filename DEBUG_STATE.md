@@ -236,6 +236,14 @@
 - Green: real launcher case passed; full native regression **178 passed, 6 skipped**, one existing warning. The test never invokes an MD engine; WSL/Linux skips this Windows-specific boundary.
 - Commit: `fix: propagate WSL failure from the Windows launcher`.
 
+### F27 / P1: concurrent readers cause transient checkpoint/CLI failures
+
+- Red: native pressure observed 57/600 failed saves and 9/200 failures each for status and diagnosis; WSL on DrvFS observed 4/200 status failures. Six deterministic sharing/replacement-window cases failed before the fix.
+- Root cause: Windows handles can temporarily deny replacement/read access; WSL DrvFS can briefly return ENOENT/ENODATA during replacement even though JSON bytes are written atomically.
+- Fix: shared JSON reads and atomic replacement retry only these filesystem conflicts, bounded to 50 attempts at 10 ms. Invalid JSON and other errors remain failures; persistent access errors still fail, preserving the last committed file. Dynamic manifest readers avoid an existence-check race.
+- Green: 11 persistence cases; full native regression **184 passed, 6 skipped**, one existing warning. Independent pressure rerun follows the separate diagnosis atomic-write fix.
+- Commit: `fix: retry transient shared-filesystem checkpoint access`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

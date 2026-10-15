@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 import os
+import errno
 
 from cypforge_core import cli
 from cypforge_core.orchestrator import RunConfig, WorkflowManager
@@ -65,6 +66,48 @@ def test_failed_checkpoint_replacement_preserves_last_manifest(tmp_path, monkeyp
     assert {path.name for path in workflow.run_root.iterdir()} == {
         "run_config.json", "run_manifest.json", "logs", "decisions",
     }
+
+
+@pytest.mark.parametrize("winerror", [5, 32, 33])
+def test_checkpoint_retries_transient_windows_sharing_conflict(tmp_path, monkeypatch, winerror):
+    workflow = WorkflowManager(RunConfig("sharing", str(tmp_path / "run"), str(tmp_path)))
+    manifest = workflow.init_run()
+    replace = os.replace
+    calls = []
+
+    def transient_replace(source, target):
+        calls.append(target)
+        if len(calls) <= 2:
+            error = PermissionError("reader temporarily owns a Windows handle")
+            error.winerror = winerror
+            raise error
+        return replace(source, target)
+
+    monkeypatch.setattr(os, "replace", transient_replace)
+    manifest.workflow_status = "RUNNING"
+    workflow.save_manifest(manifest)
+    assert workflow.load_manifest().workflow_status == "RUNNING"
+    assert len(calls) == 3
+    assert not list(workflow.run_root.glob("*.tmp"))
+
+
+@pytest.mark.parametrize("error_code", [errno.ENOENT, errno.EACCES, getattr(errno, "ENODATA", 61)])
+def test_checkpoint_reader_retries_drvfs_replacement_window(tmp_path, monkeypatch, error_code):
+    workflow = WorkflowManager(RunConfig("reader", str(tmp_path / "run"), str(tmp_path)))
+    workflow.init_run()
+    read_text = Path.read_text
+    calls = []
+
+    def transient_read(path, *args, **kwargs):
+        if path == workflow.manifest_path:
+            calls.append(path)
+            if len(calls) <= 2:
+                raise OSError(error_code, "transient shared-filesystem replacement window")
+        return read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", transient_read)
+    assert workflow.load_manifest().run_name == "reader"
+    assert len(calls) == 3
 
 
 def test_concurrent_workflow_execution_is_rejected(tmp_path, monkeypatch):

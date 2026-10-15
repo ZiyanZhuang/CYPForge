@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 from typing import Any, Iterable, Iterator
 
+from .io import read_json
+
 
 DEFAULT_HOME = Path.home() / ".cypforge"
 SOURCE_REGISTRY = {
@@ -234,10 +236,8 @@ def build_run_diagnosis(run_root: str | Path, output: str | Path | None = None) 
         raise FileNotFoundError(root)
     config_path = root / "run_config.json"
     manifest_path = root / "run_manifest.json"
-    if not config_path.is_file() or not manifest_path.is_file():
-        raise FileNotFoundError("A CYPForge run requires run_config.json and run_manifest.json")
-    config = json.loads(config_path.read_text(encoding="utf-8"))
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    config = read_json(config_path)
+    manifest = read_json(manifest_path)
     replacements = {
         str(root): "<RUN_ROOT>",
         str(root).replace("\\", "/"): "<RUN_ROOT>",

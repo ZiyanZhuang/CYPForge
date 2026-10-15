@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from ..io import write_json
+from ..io import read_json, write_json
 
 from .models import (
     RunConfig,
@@ -193,9 +193,10 @@ class WorkflowManager:
 
     def load_manifest(self) -> RunManifest | None:
         """Load an existing run_manifest.json. Returns None if absent."""
-        if not self.manifest_path.is_file():
+        try:
+            data = read_json(self.manifest_path)
+        except FileNotFoundError:
             return None
-        data = json.loads(self.manifest_path.read_text(encoding="utf-8-sig"))
         if not isinstance(data, dict) or data.get("schema") != "cypforge.orchestrator.run_manifest.v1":
             raise ValueError(f"Invalid run manifest schema: {self.manifest_path}")
         for field_name, field_type in (("modules", dict), ("run_config", dict), ("absolute_stop_conditions", list)):

@@ -42,7 +42,7 @@ from .ligand_gpu4pyscf_esp import (
     stage_supplied_ligand_parameters,
 )
 from .local_knowledge import LocalDocsIndex, build_run_diagnosis, load_profile, update_profile
-from .io import write_json
+from .io import read_json, write_json
 from .orchestrator import CYPForgeOrchestrator, RunConfig
 
 
@@ -839,7 +839,7 @@ def _load_config(run_name: str, run_root_override: str | None) -> RunConfig | No
         return None
 
     try:
-        data = json.loads(config_path.read_text(encoding="utf-8-sig"))
+        data = read_json(config_path)
     except (ValueError, OSError) as exc:
         raise ValueError(f"Cannot read config {config_path}: {exc}") from exc
     if not isinstance(data, dict):
