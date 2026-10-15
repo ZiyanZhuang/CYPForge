@@ -432,6 +432,15 @@
 - Green: 21 CLI cases; full native regression **253 passed, 6 skipped**, one existing warning. Rejected cases preserve every run file byte-for-byte (apart from the persistent lock inode). Formal round 2 must re-review this fix.
 - Commit: `fix: reject protonation edits after downstream input consumption`.
 
+### F51 / P2: unique log names exceed ordinary Windows path limits
+
+- Regression review's original longer pytest base produced a 261-character command-log path and FileNotFoundError before step execution. An independent 172-character log directory reproduced the baseline 231-character name succeeding versus the UUID-extended 264-character name failing; this machine has LongPathsEnabled=0.
+- Red: native public run_step at that directory failed before harmless print(42), with no subprocess execution.
+- Root cause: F02 appended a full UUID to step/time metadata already present in the command log, pushing otherwise usable paths past MAX_PATH.
+- Fix: use the complete UUID alone as the basename. Step/time remain in StepRecord and command-log content; attempts remain unique without changing OS settings. This does not promise arbitrary paths beyond native OS limits.
+- Green: 13 runner cases; full native regression **254 passed, 6 skipped**, one existing warning. Two attempts retain separate logs in the original long directory. Formal round 2 must rerun its unchanged longer test base.
+- Commit: `fix: keep unique runner log filenames short on Windows`.
+
 ## Module coverage
 
 All **11 requested module areas** explored and exercised. Real scientific preparation reached **6/10** fixed-order modules; remaining execution/audit/decision behavior used explicit simulations/static fixtures, never real MD.

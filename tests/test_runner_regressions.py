@@ -44,6 +44,22 @@ def test_repeated_step_keeps_both_attempt_logs(tmp_path, monkeypatch):
     assert len(list(tmp_path.glob("*_command.txt"))) == 2
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows path-length boundary")
+def test_windows_log_path_limit(tmp_path):
+    log_dir = tmp_path / ("x" * max(1, 172 - len(str(tmp_path)) - 1))
+    log_dir.mkdir()
+    runner = ModuleRunner(RunConfig("long-log", str(tmp_path), str(tmp_path)))
+    step = StepDef("stage_prepared_ligand_complex", "python_script", command_template='python -c "print(42)"')
+    first = runner.run_step(step, log_dir)
+    second = runner.run_step(step, log_dir)
+    assert first.status == second.status == "PASS"
+    assert first.stdout_path != second.stdout_path
+    assert Path(first.stdout_path).read_text(encoding="utf-8").strip() == "42"
+    command_logs = list(log_dir.glob("*_command.txt"))
+    assert len(command_logs) == 2
+    assert all(step.name in path.read_text(encoding="utf-8") for path in command_logs)
+
+
 def test_runner_preserves_exit_code_and_logs_with_non_utf8_output(tmp_path):
     script = tmp_path / "emit_bytes.py"
     script.write_text(

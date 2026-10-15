@@ -170,7 +170,8 @@ class ModuleRunner:
         )
 
         log_dir.mkdir(parents=True, exist_ok=True)
-        prefix = f"{_ts()}_{step.name}_{uuid4().hex}"
+        # Step/time are inside the command log; short names avoid Windows MAX_PATH regressions.
+        prefix = uuid4().hex
 
         stdout_path = log_dir / f"{prefix}_stdout.txt"
         stderr_path = log_dir / f"{prefix}_stderr.txt"
