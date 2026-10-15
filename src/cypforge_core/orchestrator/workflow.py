@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -23,6 +24,28 @@ from .models import (
 
 def _ts() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _open_windows_lock(path: Path):
+    import ctypes
+    from ctypes import wintypes
+    import msvcrt
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                  wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    # No sharing: unlike msvcrt byte locks, this also excludes WSL DrvFS opens.
+    raw = kernel.CreateFileW(str(path), 0xC0000000, 0, None, 4, 0x80, None)
+    if raw == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        descriptor = msvcrt.open_osfhandle(raw, os.O_RDWR | os.O_BINARY)
+    except Exception:
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle(raw)
+        raise
+    return os.fdopen(descriptor, "r+b")
 
 
 def _load_skills_manifest(project_root: str) -> dict[str, Any]:
@@ -79,28 +102,19 @@ class WorkflowManager:
     @contextmanager
     def run_lock(self):
         """Keep one workflow writer per run; the OS releases locks on exit."""
-        with (self.run_root / ".cypforge.lock").open("a+b") as handle:
-            if sys.platform == "win32":
-                import msvcrt
-                if handle.tell() == 0:
-                    handle.write(b"\0")
-                    handle.flush()
-                handle.seek(0)
-                lock = lambda: msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-                unlock = lambda: msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
+        path = self.run_root / ".cypforge.lock"
+        try:
+            handle = _open_windows_lock(path) if sys.platform == "win32" else path.open("a+b")
+        except OSError as exc:
+            raise RuntimeError(f"Cannot open run lock; another writer may already own this run: {self.run_root}: {exc}") from exc
+        with handle:
+            if sys.platform != "win32":
                 import fcntl
-                lock = lambda: fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                unlock = lambda: fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-            try:
-                lock()
-            except OSError as exc:
-                raise RuntimeError(f"Another operation is already writing this run: {self.run_root}") from exc
-            try:
-                yield
-            finally:
-                handle.seek(0)
-                unlock()
+                try:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except OSError as exc:
+                    raise RuntimeError(f"Another operation is already writing this run: {self.run_root}") from exc
+            yield
 
     # init
 

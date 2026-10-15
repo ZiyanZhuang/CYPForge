@@ -4,10 +4,15 @@ from pathlib import Path
 import pytest
 import os
 import errno
+import shlex
+import shutil
+import subprocess
+import sys
 
 from cypforge_core import cli
 from cypforge_core.orchestrator import RunConfig, WorkflowManager
 from cypforge_core.orchestrator import CYPForgeOrchestrator
+from cypforge_core.io import _win_to_wsl
 
 
 def test_init_refuses_to_overwrite_existing_run(tmp_path):
@@ -138,3 +143,17 @@ def test_concurrent_workflow_execution_is_rejected(tmp_path, monkeypatch):
             future.result(timeout=5)
 
     assert first.workflow.load_manifest().modules["cypforge.environment_check"]["status"] == "PASS"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows/WSL shared-run locking boundary")
+def test_native_workflow_lock_excludes_wsl_writer(tmp_path):
+    if not shutil.which("wsl"):
+        pytest.skip("WSL unavailable")
+    workflow = WorkflowManager(RunConfig("cross-os", str(tmp_path / "run"), str(tmp_path)))
+    workflow.init_run()
+    command = "exec 9>>" + shlex.quote(_win_to_wsl(workflow.run_root / ".cypforge.lock")) + "; flock -n 9"
+    baseline = subprocess.run(["wsl", "--exec", "bash", "-c", command], capture_output=True, timeout=15)
+    assert baseline.returncode == 0, baseline.stderr
+    with workflow.run_lock():
+        contender = subprocess.run(["wsl", "--exec", "bash", "-c", command], capture_output=True, timeout=15)
+        assert contender.returncode != 0, "WSL acquired a lock while the Windows writer owned the run"

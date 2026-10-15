@@ -260,6 +260,14 @@
 - Green: 7 CLI cases; full native regression **187 passed, 6 skipped**, one existing warning.
 - Commit: `fix: return failure for ERROR workflow checkpoints`.
 
+### F30 / P1: Windows and WSL locks do not exclude each other
+
+- Red: real Windows msvcrt and WSL flock/lockf holders both allowed an opposite-OS writer; the new native→WSL regression failed. Same-OS locking had passed, so that evidence alone was insufficient.
+- Root cause: byte-range/advisory locks are not interoperable across the Windows/DrvFS boundary.
+- Fix: Windows owns an exclusive no-sharing file handle; Linux retains flock. Windows sharing rules block the opposite-OS open in both directions, and handle/process exit releases ownership without deleting the lock inode.
+- Green: 12 persistence cases; full native regression **188 passed, 6 skipped**, one existing warning. Dedicated bidirectional/crash-recovery verification follows.
+- Commit: `fix: exclude WSL writers with an exclusive Windows lock handle`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
