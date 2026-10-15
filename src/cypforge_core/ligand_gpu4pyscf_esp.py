@@ -421,6 +421,35 @@ def stage_supplied_ligand_parameters(
     if sdf_mapping.get("status") != "success":
         raise ValueError("Supplied MOL2 does not satisfy the ligand SDF graph contract.")
 
+    atom_ids = {int(atom["index"]) for atom in atoms}
+    if len(atom_ids) != len(atoms) or any(index <= 0 for index in atom_ids):
+        raise ValueError("Supplied MOL2 atom IDs must be positive and unique.")
+    sdf_to_mol2 = {
+        int(row["sdf_index"]): int(atoms[int(row["complex_index"]) - 1]["index"])
+        for row in sdf_mapping["mapping"]
+    }
+    expected_bonds = {
+        tuple(sorted((sdf_to_mol2[int(bond["a"])], sdf_to_mol2[int(bond["b"])]))): int(bond["order"])
+        for bond in sdf["bonds"]
+    }
+    supplied_bonds: dict[tuple[int, int], str] = {}
+    in_bonds = False
+    for line in mol2_src.read_text(encoding="utf-8").splitlines():
+        if line.startswith("@<TRIPOS>"):
+            in_bonds = line.startswith("@<TRIPOS>BOND")
+            continue
+        if not in_bonds or not line.strip() or line.lstrip().startswith("#"):
+            continue
+        fields = line.split()
+        if len(fields) < 4:
+            raise ValueError(f"Invalid supplied MOL2 bond row: {line}")
+        edge = tuple(sorted((int(fields[1]), int(fields[2]))))
+        if edge in supplied_bonds or edge[0] == edge[1] or not set(edge) <= atom_ids:
+            raise ValueError(f"Invalid or duplicate supplied MOL2 bond: {line}")
+        supplied_bonds[edge] = fields[3].lower()
+    if set(supplied_bonds) != set(expected_bonds):
+        raise ValueError("Supplied MOL2 BOND connectivity does not match the mapped ligand SDF graph.")
+
     extracted_pdb = out / f"{ligand_resname}_from_confirmed_complex.pdb"
     extract_ligand_from_complex_pdb(
         complex_pdb=complex_src,
@@ -481,6 +510,8 @@ def stage_supplied_ligand_parameters(
         "atom_count": len(atoms),
         "element_composition_check": "passed",
         "sdf_mol2_graph_check": "passed",
+        "supplied_mol2_bond_connectivity_check": "passed",
+        "supplied_mol2_bond_count": len(supplied_bonds),
         "sdf_mol2_mapping": sdf_mapping,
         "confirmed_complex_ligand_pdb": str(extracted_pdb),
         "complex_pose_check": {

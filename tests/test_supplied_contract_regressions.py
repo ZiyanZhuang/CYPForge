@@ -29,3 +29,49 @@ def test_supplied_mol2_rejects_nonfinite_charge(supplied_contract, charge):
     mol2.write_text("\n".join(lines) + "\n", encoding="utf-8")
     with pytest.raises(ValueError):
         stage_supplied_ligand_parameters(**supplied_contract)
+
+
+@pytest.mark.parametrize("corruption", ["zero_bonds", "changed_connectivity", "unknown_atom", "duplicate_bond"])
+def test_supplied_mol2_checks_its_actual_bond_connectivity(supplied_contract, corruption):
+    mol2 = supplied_contract["supplied_mol2"]
+    lines = mol2.read_text(encoding="utf-8").splitlines()
+    start = lines.index("@<TRIPOS>BOND") + 1
+    end = next(index for index in range(start, len(lines)) if lines[index].startswith("@<TRIPOS>"))
+    if corruption == "zero_bonds":
+        counts = lines[2].split()
+        counts[1] = "0"
+        lines[2] = " ".join(counts)
+        del lines[start:end]
+    elif corruption == "duplicate_bond":
+        lines.insert(end, lines[start])
+    else:
+        fields = lines[start].split()
+        fields[2] = "4" if corruption == "changed_connectivity" else "999"
+        lines[start] = " ".join(fields)
+    mol2.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="(?i)MOL2.*bond|bond.*MOL2"):
+        stage_supplied_ligand_parameters(**supplied_contract)
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_supplied_bond_mapping_uses_unique_explicit_atom_ids(supplied_contract, duplicate):
+    mol2 = supplied_contract["supplied_mol2"]
+    lines = mol2.read_text(encoding="utf-8").splitlines()
+    section = ""
+    for index, line in enumerate(lines):
+        if line.startswith("@<TRIPOS>"):
+            section = line
+        elif section == "@<TRIPOS>ATOM" and line.strip():
+            fields = line.split()
+            fields[0] = "101" if duplicate else str(int(fields[0]) + 100)
+            lines[index] = " ".join(fields)
+        elif section == "@<TRIPOS>BOND" and line.strip():
+            fields = line.split()
+            fields[1:3] = [str(int(value) + 100) for value in fields[1:3]]
+            lines[index] = " ".join(fields)
+    mol2.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if duplicate:
+        with pytest.raises(ValueError, match="atom IDs"):
+            stage_supplied_ligand_parameters(**supplied_contract)
+    else:
+        assert stage_supplied_ligand_parameters(**supplied_contract)["supplied_mol2_bond_count"] == 27

@@ -324,6 +324,14 @@
 - Green: 3 supplied-contract cases; full native regression **207 passed, 6 skipped**, one existing warning.
 - Commit: `fix: reject nonfinite supplied ligand charge sums`.
 
+### F38 / P1: supplied MOL2's actual bond table bypasses the SDF graph contract
+
+- Red: zero bonds (including header count 0), changed connectivity, nonexistent endpoints, and duplicate bonds were all accepted (4 failed public cases). Independent real LEaP also generated topology for zero/changed connectivity, so exit 0 cannot repair this omission.
+- Root cause: the existing identity-safe mapper checked coordinate-inferred connectivity without comparing the supplied file's explicit BOND records.
+- Fix: retain the unchanged mapper, then compare actual MOL2 edges against the mapped SDF edges; reject invalid/duplicate atom IDs, self/duplicate bonds, and unknown endpoints. Manifest now records explicit bond count/connectivity evidence. No geometry/chemical inference algorithm changed.
+- Green: 9 supplied-contract cases, including nonsequential atom IDs and bundled ar/Kekulé input; full native regression **213 passed, 6 skipped**, one existing warning. Bond-order/aromatic equivalence is a separate check, not claimed by this connectivity result.
+- Commit: `fix: check explicit supplied MOL2 connectivity against the SDF`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
