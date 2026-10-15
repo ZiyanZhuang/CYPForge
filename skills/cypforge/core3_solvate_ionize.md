@@ -45,13 +45,19 @@ Execute and validate LEaP:
 
 ```powershell
 cd "<RUN_ROOT>\15_complex_solvation_ionization"
-wsl -e bash -lc "source <AMBER_SETUP_SCRIPT> && cd '<RUN_ROOT_WSL>/15_complex_solvation_ionization' && tleap -f complex_solvation_ionization_leap.in > leap.log 2>&1"
+wsl -e bash -lc "source <AMBER_SETUP_SCRIPT> && cd '<RUN_ROOT_WSL>/15_complex_solvation_ionization' && rm -f -- system_lig_solv.prmtop system_lig_solv.rst7 system_lig_solv_tleap.pdb && tleap -f complex_solvation_ionization_leap.in > leap.log 2>&1"
 
 cypforge module solvate validate `
   --solvation-manifest-json "<RUN_ROOT>\15_complex_solvation_ionization\solvation_manifest.json"
 ```
 
 ## Outputs
+
+An intentional LEaP rerun replaces the three generated system outputs. Remove
+them only after entering the intended output directory and immediately before
+LEaP, so an exit-0 attempt that produces nothing cannot validate old files.
+Keep source input/parameter files and the manifests. Preserve prior results
+elsewhere before deliberately rerunning preparation.
 
 ```text
 <RUN_ROOT>/15_complex_solvation_ionization/system_lig_solv.prmtop

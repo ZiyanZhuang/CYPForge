@@ -11,6 +11,8 @@ import pytest
 from cypforge_core import prepare_complex_pre_md_equilibration, validate_solvation_tleap_outputs
 from cypforge_core.complex_pre_md_equilibration import validate_complex_pre_md_run
 from cypforge_core.complex_pre_md_equilibration import default_pre_md_protocol_config
+from cypforge_core.orchestrator import ModuleRunner, RunConfig
+from cypforge_core.orchestrator.models import get_module_by_skill_id
 
 
 @pytest.fixture
@@ -43,6 +45,37 @@ def test_pre_md_render_rejects_empty_topology(solvation_outputs, tmp_path):
     paths["expected_prmtop_after_tleap"].write_bytes(b"")
     with pytest.raises((ValueError, FileNotFoundError), match="[Ee]mpty|[Nn]onempty"):
         prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, output_dir=tmp_path / "rendered")
+
+
+def test_solvation_attempt_cannot_validate_leftover_outputs(tmp_path):
+    if not shutil.which("wsl" if sys.platform == "win32" else "bash"):
+        pytest.skip("WSL/Bash unavailable")
+    root = tmp_path / "run"
+    output = root / "15_complex_solvation_ionization"
+    output.mkdir(parents=True)
+    paths = {key: output / name for key, name in {
+        "expected_prmtop_after_tleap": "system_lig_solv.prmtop",
+        "expected_rst7_after_tleap": "system_lig_solv.rst7",
+        "expected_pdb_after_tleap": "system_lig_solv_tleap.pdb",
+    }.items()}
+    for path in paths.values():
+        path.write_text("old opaque artifact\n", encoding="utf-8")
+    manifest = output / "solvation_manifest.json"
+    manifest.write_text(json.dumps({"output_files": {
+        "manifest_json": str(manifest), **{key: str(path) for key, path in paths.items()},
+    }, "ionization": {}}), encoding="utf-8")
+    setup = tmp_path / "owned_setup.sh"
+    setup.write_bytes(
+        b"tleap() { printf 'Total unperturbed charge: 0.0\\nExiting LEaP: Errors = 0; Warnings = 0; Notes = 0\\n'; }\n"
+        b"export -f tleap\n"
+    )
+    runner = ModuleRunner(RunConfig("stale", str(root), str(tmp_path),
+        amber_sh=_win_to_wsl(setup) if sys.platform == "win32" else str(setup)))
+    step = next(step for step in get_module_by_skill_id("cypforge.core3_solvate_ionize").steps if step.name == "run_solvation_tleap")
+    record = runner.run_step(step, root / "logs")
+    assert record.status == "PASS", record.error_message  # The owned no-op function exits 0.
+    assert validate_solvation_tleap_outputs(solvation_manifest_json=manifest)["status"] == "fail"
+    assert not any(path.exists() for path in paths.values())
 
 
 @pytest.fixture

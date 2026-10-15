@@ -441,6 +441,15 @@
 - Green: 13 runner cases; full native regression **254 passed, 6 skipped**, one existing warning. Two attempts retain separate logs in the original long directory. Formal round 2 must rerun its unchanged longer test base.
 - Commit: `fix: keep unique runner log filenames short on Windows`.
 
+### F52 / P1: an exit-0 LEaP rerun can validate previous system files
+
+- Root public-step probe used an owned tleap function that returned 0 and printed a normal zero-error/neutral log but wrote no files. Existing old topology/restart/PDB were left intact and public solvation validation falsely returned success. No actual scientific executable ran.
+- Red: a regression of that exact ModuleRunner→validation boundary returned success instead of fail (**1 failed**).
+- Root cause: each attempt refreshed leap.log but retained the prior three fixed output files; nonempty-file gates could not distinguish those leftovers.
+- Fix: after successful cd to the intended solvation directory and immediately before LEaP, remove only its three fixed generated outputs. The existing validator now rejects a no-output attempt even when LEaP returns 0. Source/parameter/manifest files remain intact; the manual skill command matches the controller. Intentional LEaP reruns already overwrite those outputs.
+- Green: 46 artifact cases; full native regression **255 passed, 6 skipped**, one existing warning. Formal round 2 must verify this boundary and full regression again before progressing.
+- Commit: `fix: invalidate prior solvation outputs before each LEaP attempt`.
+
 ## Module coverage
 
 All **11 requested module areas** explored and exercised. Real scientific preparation reached **6/10** fixed-order modules; remaining execution/audit/decision behavior used explicit simulations/static fixtures, never real MD.

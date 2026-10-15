@@ -404,6 +404,7 @@ def build_module_definitions() -> list[ModuleDef]:
                     description="Execute solvation/neutralization LEaP input",
                     command_template=(
                         "cd {run_root_wsl}/15_complex_solvation_ionization && "
+                        "rm -f -- system_lig_solv.prmtop system_lig_solv.rst7 system_lig_solv_tleap.pdb && "
                         "tleap -f complex_solvation_ionization_leap.in > leap.log 2>&1"
                     ),
                     timeout_seconds=300,
