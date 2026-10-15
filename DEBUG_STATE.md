@@ -316,6 +316,14 @@
 - Green: 38 artifact cases; full native regression **204 passed, 6 skipped**, one existing warning. Both launcher cases use only a replacement script containing `exit 7`; no MD.
 - Commit: `fix: escape apostrophes in Windows launcher paths`.
 
+### F37 / P1: supplied ligand parameters accept NaN charge
+
+- Red: bundled public supplied-parameter route with one MOL2 charge changed to NaN returned success and serialized NaN as a charge sum; positive/negative infinity controls were already rejected.
+- Root cause: `abs(NaN - formal_charge) > tolerance` is false.
+- Fix: require a finite charge sum before applying the unchanged charge tolerance. No charge fitting, graph mapping, or chemical rule changed.
+- Green: 3 supplied-contract cases; full native regression **207 passed, 6 skipped**, one existing warning.
+- Commit: `fix: reject nonfinite supplied ligand charge sums`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

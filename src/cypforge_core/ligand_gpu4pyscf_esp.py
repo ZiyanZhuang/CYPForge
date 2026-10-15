@@ -409,7 +409,7 @@ def stage_supplied_ligand_parameters(
             f"Ligand SDF formal charge {sdf['formal_charge']} does not match requested charge {formal_charge}"
         )
     charge_sum = sum(float(atom["charge"]) for atom in atoms)
-    if abs(charge_sum - formal_charge) > RESP_CHARGE_SUM_TOLERANCE_E:
+    if not math.isfinite(charge_sum) or abs(charge_sum - formal_charge) > RESP_CHARGE_SUM_TOLERANCE_E:
         raise ValueError(
             f"Supplied MOL2 charge sum {charge_sum:.8f} does not match formal charge {formal_charge}"
         )
