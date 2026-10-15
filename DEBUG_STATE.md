@@ -156,6 +156,14 @@
 - Green: 8 artifact cases; full native regression **149 passed, 6 skipped**, one existing warning. No MD executed.
 - Commit: `fix: verify pre-MD completion markers from actual output`.
 
+### F17 / P1: empty or inconsistent pre-MD stage lists validate success
+
+- Red: zero expected stages, explicitly empty active subset, duplicate TSV row, and unexpected TSV stage all validated success (**4 failed**).
+- Root cause: empty active lists silently fell back to all stages, an empty loop counted as success, and a dictionary collapsed duplicate rows while ignoring extras.
+- Fix: require a nonempty valid expected-stage list with unique IDs and an exact ordered one-to-one match with observed TSV stages. Declared empty active subsets fail rather than expanding to other stages.
+- Green: 12 artifact cases; full native regression **153 passed, 6 skipped**, one existing warning.
+- Commit: `fix: enforce complete and unique pre-MD stage evidence`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

@@ -444,13 +444,23 @@ def validate_complex_pre_md_run(
     reasons: list[str] = []
     stages = _parse_stage_status(stage_status_path)
     expected_stages = manifest.get("active_stages")
-    if not expected_stages:
+    if expected_stages is None:
         if manifest.get("stages_range") == "1-8":
             expected_stages = [stage for stage in manifest.get("stages", []) if int(stage.get("index", 0)) <= 8]
         elif manifest.get("stages_range") == "9":
             expected_stages = [stage for stage in manifest.get("stages", []) if int(stage.get("index", 0)) == 9]
         else:
             expected_stages = manifest.get("stages", [])
+
+    if not isinstance(expected_stages, list) or not expected_stages or any(
+        not isinstance(stage, dict) or not isinstance(stage.get("id"), str) or not stage["id"]
+        for stage in expected_stages
+    ):
+        reasons.append("A nonempty list of valid expected stages is required.")
+        expected_stages = []
+    expected_ids = [stage["id"] for stage in expected_stages]
+    if len(set(expected_ids)) != len(expected_ids) or [stage.get("stage") for stage in stages] != expected_ids:
+        reasons.append("Stage status rows must match active stages exactly once and in order.")
 
     if not started_path.is_file():
         reasons.append(f"Missing run start marker: {started_path}")

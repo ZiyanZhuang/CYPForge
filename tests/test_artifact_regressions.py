@@ -71,3 +71,20 @@ def test_pre_md_validation_checks_normal_end_in_actual_mdout(pre_md_outputs):
     result = validate_complex_pre_md_run(pre_md_manifest_json=manifest)
     assert result["status"] == "fail"
     assert result["stages"][0]["normal_end"] is False
+
+
+@pytest.mark.parametrize("case", ["zero", "empty_active", "duplicate", "unexpected"])
+def test_pre_md_stage_table_must_match_nonempty_active_stage_list(pre_md_outputs, case):
+    manifest, _ = pre_md_outputs
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    table = manifest.parent / "run/stage_status.tsv"
+    if case == "zero":
+        data["stages"] = []
+    elif case == "empty_active":
+        data["active_stages"] = []
+    else:
+        text = table.read_text(encoding="utf-8")
+        extra = text.splitlines()[1] if case == "duplicate" else "unexpected\trun/01_probe.out\t01_probe.rst7\t0\t1"
+        table.write_text(text + extra + "\n", encoding="utf-8")
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+    assert validate_complex_pre_md_run(pre_md_manifest_json=manifest)["status"] == "fail"
