@@ -212,6 +212,14 @@
 - Green: 6 CLI cases; full native regression **172 passed, 6 skipped**, one existing warning. Data remains unchanged on read failure.
 - Commit: `fix: report invalid run state and CLI failures consistently`.
 
+### F24 / P1: Windows split-stage launcher targets a nonexistent full-run script
+
+- Red: `stages_range=1-8` and `9` rendered only split scripts but the launcher still invoked `run_pre_md.sh` (**2 failed, 1 passed**).
+- Root cause: the launcher target was hard-coded independently of the rendered script manifest.
+- Fix: derive the launcher target from the selected generated script. Existing full-run behavior is retained.
+- Green: 19 artifact cases; full native and WSL regressions both **175 passed, 6 skipped**, one existing warning. No scripts were executed as MD.
+- Commit: `fix: target the selected pre-MD script from Windows launcher`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

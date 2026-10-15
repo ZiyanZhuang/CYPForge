@@ -102,3 +102,15 @@ def test_protocol_rejects_stage_ids_that_become_shell_syntax(solvation_outputs, 
         prepare_complex_pre_md_equilibration(
             solvation_manifest_json=manifest, protocol_config_json=path, output_dir=tmp_path / "rendered",
         )
+
+
+@pytest.mark.parametrize("selection, expected_script", [
+    ("all", "run_pre_md.sh"), ("1-8", "run_pre_md_1_8.sh"), ("9", "run_pre_md_9.sh"),
+])
+def test_windows_launcher_targets_the_script_rendered_for_selected_stages(solvation_outputs, tmp_path, selection, expected_script):
+    manifest, _ = solvation_outputs
+    output = tmp_path / "rendered"
+    result = prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, output_dir=output, stages_range=selection)
+    assert (output / expected_script).is_file()
+    launcher = output / "run_pre_md_windows.ps1"
+    assert f"bash {expected_script}" in launcher.read_text(encoding="utf-8")

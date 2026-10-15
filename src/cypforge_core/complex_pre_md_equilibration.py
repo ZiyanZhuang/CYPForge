@@ -378,7 +378,8 @@ def prepare_complex_pre_md_equilibration(
         script_files["run_script_9"] = str(out_dir / "run_pre_md_9.sh")
 
     windows_run_script = out_dir / "run_pre_md_windows.ps1"
-    _write_text(windows_run_script, _render_windows_run_script())
+    selected_script = script_files.get("run_script") or script_files["run_script_9"]
+    _write_text(windows_run_script, _render_windows_run_script(Path(selected_script).name))
 
     manifest = {
         "schema": "cypforge.complex_pre_md_equilibration.v1",
@@ -744,7 +745,7 @@ def _render_run_script(config: dict[str, Any], stages: list[dict[str, Any]]) -> 
     return "\n".join(lines)
 
 
-def _render_windows_run_script() -> str:
+def _render_windows_run_script(script_name: str) -> str:
     return (
         "$ErrorActionPreference = 'Stop'\n"
         "$here = Split-Path -Parent $MyInvocation.MyCommand.Path\n"
@@ -752,5 +753,5 @@ def _render_windows_run_script() -> str:
         "if (-not $env:AMBER_SH -and -not $env:AMBERHOME) { Write-Error 'Set AMBER_SH or AMBERHOME'; exit 1 }\n"
         "$amberSetup = if ($env:AMBER_SH) { $env:AMBER_SH } else { \"$($env:AMBERHOME)/amber.sh\" }\n"
         "$wslUserArgs = if ($env:WSL_USER) { @('-u', $env:WSL_USER) } else { @() }\n"
-        "& wsl @wslUserArgs -e bash -lc \"source '$amberSetup' && cd '$wslPath' && bash run_pre_md.sh\"\n"
+        f"& wsl @wslUserArgs -e bash -lc \"source '$amberSetup' && cd '$wslPath' && bash {script_name}\"\n"
     )
