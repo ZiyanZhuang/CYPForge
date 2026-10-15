@@ -28,6 +28,13 @@ $REQUIRED_TOOLS=@("tleap","pmemd.cuda","cpptraj","antechamber","parmchk2")
 $OPTIONAL_TOOLS=@("reduce","propka","pdb2pqr","Multiwfn")
 ```
 
+When both reviewed ligand MOL2 and frcmod inputs are supplied, Core 2 does not
+execute `antechamber`, `parmchk2`, QM, ESP, or RESP. For that route, omit only
+the `antechamber` and `parmchk2` probes; `tleap`, `pmemd.cuda`, `cpptraj`, and
+the Python import remain mandatory. Normal parameter generation retains all
+five required Amber tools. Supplied files still undergo the same chemistry,
+charge, naming, and pose contract checks in Core 2.
+
 ## Required Files
 
 ```text
@@ -81,8 +88,8 @@ run_root cannot be created
 tleap unavailable
 pmemd.cuda unavailable
 cpptraj unavailable
-antechamber unavailable
-parmchk2 unavailable
+antechamber unavailable when ligand parameters must be generated
+parmchk2 unavailable when ligand parameters must be generated
 ```
 
 ## Warning Gates

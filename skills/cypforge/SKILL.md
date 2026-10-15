@@ -66,6 +66,11 @@ antechamber
 parmchk2
 ```
 
+The reviewed supplied-MOL2/frcmod route does not execute `antechamber` or
+`parmchk2`, so those two probes are omitted only on that route. The mandatory
+`tleap`, `pmemd.cuda`, `cpptraj`, and Python checks remain in force, as do all
+supplied-ligand chemistry and identity checks.
+
 Optional tools:
 
 ```text

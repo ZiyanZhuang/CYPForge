@@ -58,6 +58,11 @@ class WorkflowManager:
         self.config = config
         self.run_root = Path(config.run_root)
         self._module_defs: list[ModuleDef] = build_module_definitions()
+        if config.supplied_ligand_mol2 and config.supplied_ligand_frcmod:
+            self._module_defs[0].steps = [
+                step for step in self._module_defs[0].steps
+                if step.name not in {"check_antechamber", "check_parmchk2"}
+            ]
         self._skills_manifest = _load_skills_manifest(config.project_root)
 
     # manifest path helpers

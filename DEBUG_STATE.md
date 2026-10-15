@@ -91,6 +91,14 @@
 - User explicitly confirmed the bundled 4EJJ changes for no-MD smoke: GLU419→GLH; HIE55/299/386→HID; watchlist unchanged.
 - Commit: `fix: retain blank-chain identity in protonation decisions`.
 
+### F09 / P1: supplied-parameter route requires tools it never executes
+
+- Red: normal route remained FAIL as required when `antechamber` was unavailable; the reviewed supplied-MOL2/frcmod route also failed (**1 failed, 1 passed**), contradicting its no-parameter-generation contract. Real 4EJJ smoke reproduced the block after successful Python/tleap/pmemd.cuda/cpptraj probes.
+- Root cause: the static default tool-probe list was used regardless of selected Core-2 execution route.
+- Fix: for a complete supplied pair only, omit the two unused `antechamber/parmchk2` probes in the per-run environment definition. All required active-route tool checks and all downstream ligand chemistry/identity gates remain. Normal generation still requires all five tools. Environment skill documentation synchronized; no scientific rule or chemical algorithm changed.
+- Green: 2 route tests; full native regression **123 passed, 6 skipped**. Real smoke now passes environment and Core 1, then detects a separate missing-ligand input-routing defect in Core 2 (next issue).
+- Commit: `fix: probe tools required by the selected ligand route`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
