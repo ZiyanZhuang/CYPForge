@@ -115,7 +115,7 @@ def test_pre_md_validation_checks_normal_end_in_actual_mdout(pre_md_outputs):
 
 @pytest.mark.parametrize("fatal", [
     "Ewald bomb", "PME error", "abnormal termination", "missing restraint reference",
-    "cannot find inpcrd", "cannot find prmtop",
+    "cannot find inpcrd", "cannot find prmtop", "vlimit exceeded for step 123",
 ])
 def test_pre_md_validation_rejects_documented_fatal_messages(pre_md_outputs, fatal):
     manifest, paths = pre_md_outputs
@@ -123,6 +123,18 @@ def test_pre_md_validation_rejects_documented_fatal_messages(pre_md_outputs, fat
     result = validate_complex_pre_md_run(pre_md_manifest_json=manifest)
     assert result["status"] == "fail"
     assert result["stages"][0]["fatal_keyword_count"] == 1
+
+
+@pytest.mark.parametrize("value", ["-1.00000", "20.00000"])
+def test_pre_md_validation_accepts_normal_velocity_limit_parameter_echo(pre_md_outputs, value):
+    manifest, paths = pre_md_outputs
+    paths["mdout"].write_text(
+        f"     t = 0.00000, dt = 0.00100, vlimit = {value}\nFinal Performance Info\n",
+        encoding="utf-8",
+    )
+    result = validate_complex_pre_md_run(pre_md_manifest_json=manifest)
+    assert result["status"] == "success"
+    assert result["stages"][0]["fatal_keyword_count"] == 0
 
 
 @pytest.mark.parametrize("substitute", ["mdout", "restart"])
@@ -279,8 +291,9 @@ def test_pre_md_rerun_cannot_reuse_previous_stage_outputs(solvation_outputs, tmp
 
 @pytest.mark.parametrize("bad_output, expected_calls", [
     ("fatal", 1), ("empty_restart", 1), ("empty_trajectory", 5), ("fatal_stderr", 1), ("fatal_stdout", 1),
+    ("vlimit_exceeded", 1), ("normal_vlimit", 9),
 ])
-def test_pre_md_script_stops_at_first_bad_stage_output(solvation_outputs, tmp_path, bad_output, expected_calls):
+def test_pre_md_script_distinguishes_bad_outputs_from_normal_parameters(solvation_outputs, tmp_path, bad_output, expected_calls):
     manifest, _ = solvation_outputs
     output = tmp_path / "stop early"
     prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, output_dir=output)
@@ -305,6 +318,8 @@ owned_fake_engine() {
     if [ "$OWNED_BAD_OUTPUT" = fatal ]; then printf 'FATAL test diagnostic\\n' >> "$mdout"; fi
     if [ "$OWNED_BAD_OUTPUT" = fatal_stderr ]; then printf 'CUDA ERROR: illegal memory access\\n' >&2; fi
     if [ "$OWNED_BAD_OUTPUT" = fatal_stdout ]; then printf 'CUDA ERROR: illegal memory access\\n'; fi
+    if [ "$OWNED_BAD_OUTPUT" = vlimit_exceeded ]; then printf 'vlimit exceeded for step 123\\n' >> "$mdout"; fi
+    if [ "$OWNED_BAD_OUTPUT" = normal_vlimit ]; then printf 't = 0.00000, dt = 0.00100, vlimit = -1.00000\\n' >> "$mdout"; fi
     if [ "$OWNED_BAD_OUTPUT" = empty_restart ]; then : > "$restart"; fi
     if [ "$OWNED_BAD_OUTPUT" = empty_trajectory ] && [ -n "$trajectory" ]; then : > "$trajectory"; fi
     return 0
@@ -313,7 +328,7 @@ export -f cpptraj owned_fake_engine
 export AMBER_ENGINE=owned_fake_engine
 """
     probe = _bash_probe(f"cd {shlex.quote(directory)}\nexport OWNED_BAD_OUTPUT={bad_output}\n" + fake + script)
-    assert probe.returncode == 6
+    assert probe.returncode == (0 if bad_output == "normal_vlimit" else 6)
     assert len((output / "owned_engine_calls.txt").read_text(encoding="utf-8").splitlines()) == expected_calls
 
 

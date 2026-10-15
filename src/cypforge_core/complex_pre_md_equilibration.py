@@ -664,7 +664,7 @@ def _safe_int(value: Any) -> int | None:
 _FATAL_PATTERNS = [
     r"\bfatal\b",
     r"\bnan\b",
-    r"\bvlimit\b",
+    r"\bvlimit +exceeded\b",
     r"shake failure",
     r"segmentation fault",
     r"illegal memory access",

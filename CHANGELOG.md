@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — GPU integration follow-up
+
+- Accept normal Amber `vlimit` parameter echoes while retaining the hard failure
+  for `vlimit exceeded`. The shared check is used by generated Bash and the
+  independent Python pre-MD validator. Reproduced with real GPU output and
+  public-boundary regression tests; this fix is after the immutable v1.1.0 tag.
+
 ## 1.1.0 — independent maintenance release (2026-10-15)
 
 This `release/1.1` line is based on revision `427afd6`, whose package version was

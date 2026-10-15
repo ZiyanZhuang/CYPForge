@@ -524,3 +524,21 @@ Portable no-MD commands and expected review boundary are reproduced in [RELEASE_
 - Final tag code is the same 37 Python source files measured by the frozen `b780f63` real smoke and fresh dual-platform regression. Later pre-tag commits contain documentation only. The additional receipt commit changes only this ledger and advances `release/1.1`; **v1.1.0 remains fixed at ba6e415**.
 - Final scope assessment: **11/11 requested module areas** explored; real no-MD preparation completed **6/10 fixed-order modules**, with remaining execution/recovery/decision control covered by owned fakes and static fixtures. **53 issues repaired (1 P0/41 P1/11 P2), all three review gates green, no known unresolved P0/P1 in the exercised scope**. Optional fixtures and scientific/dynamics/platform limits above remain explicit.
 - Release verification finished approximately **1 hour 45 minutes** after the recorded 17:31 start, within the approximate seven-hour budget. The task met the user's normal exit condition; the final ledger push is an audit-only completion step. No real QM or MD was run.
+
+## GPU integration follow-up — 2026-10-15 21:36 Asia/Shanghai
+
+The user subsequently authorized low-throughput real local-GPU integration.
+The preceding no-MD statements describe the v1.1.0 release validation snapshot.
+This follow-up keeps its tag/wheel fixed and uses separate diagnostic copies;
+the original prepared run and its workflow checkpoint remain unchanged.
+
+### F54 / P1: normal Amber velocity-limit metadata stops healthy GPU MD
+
+- Hardware: local RTX 5060, 8 GB, GPU UUID `GPU-6b0e551b-9dc4-18d8-167f-9595f3f40550`; existing Amber26 CUDA/sm_120 build, no installation or software configuration changes.
+- Real reproduction: `../debug_artifacts/gpu_validation_20261015_214009/` ran copied canonical stages 01–05. All four minimizations and the 100 ps NVT stage exited 0 with normal termination. The unchanged generated shell then exited 6 because its fatal pattern matched the normal header `t = 0.00000, dt = 0.00100, vlimit = -1.00000`. No later stage or 20 ns stage ran. Original preparation hashes remained equal.
+- Root cause: shared `_FATAL_PATTERNS` matched every standalone `vlimit`, including printed input metadata. Existing Amber26 source unconditionally prints that parameter; its actual violation message is `vlimit exceeded for step ...`.
+- Red: two public-validator positive controls and one generated-Bash positive control failed; actual exceeded/fatal negative controls still passed (**3 failed, 7 passed**). Evidence: `../debug_artifacts/gpu_vlimit_red.txt`.
+- Fix: match `vlimit +exceeded` in the existing shared pattern list. Both Bash and Python consumers receive the repair; NaN, SHAKE, CUDA, PME and real velocity-limit failures remain hard stops. No integrator, force-field, chemical identity or protocol parameter changes.
+- Green: **51 artifact tests passed; native full 260 passed/6 skipped; WSL full 256 passed/10 skipped**, one existing legacy warning. One simultaneous native test run saw a transient Windows rename access denial inside a test fixture; the exact focused test and unchanged full command passed serially without source/fixture changes. Evidence: `../debug_artifacts/gpu_vlimit_native_green.txt` and saved tool outputs.
+- Commit: `fix: distinguish Amber velocity-limit metadata from exceeded errors`.
+- Published v1.1.0 still contains its original 53 repairs. The current branch now has **54 defect records (1 P0/42 P1/11 P2)**; F54 is an unreleased post-tag fix. Fresh full GPU preparation and bounded free-integration/restart diagnostics are the next validation step.
