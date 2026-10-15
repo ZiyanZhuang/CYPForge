@@ -541,7 +541,7 @@ the original prepared run and its workflow checkpoint remain unchanged.
 - Fix: match `vlimit +exceeded` in the existing shared pattern list. Both Bash and Python consumers receive the repair; NaN, SHAKE, CUDA, PME and real velocity-limit failures remain hard stops. No integrator, force-field, chemical identity or protocol parameter changes.
 - Green: **51 artifact tests passed; native full 260 passed/6 skipped; WSL full 256 passed/10 skipped**, one existing legacy warning. One simultaneous native test run saw a transient Windows rename access denial inside a test fixture; the exact focused test and unchanged full command passed serially without source/fixture changes. Evidence: `../debug_artifacts/gpu_vlimit_native_green.txt` and saved tool outputs.
 - Commit: `fix: distinguish Amber velocity-limit metadata from exceeded errors`.
-- Published v1.1.0 still contains its original 53 repairs. The current branch now has **54 defect records (1 P0/42 P1/11 P2)**; F54 is an unreleased post-tag fix. The completed GPU evidence follows.
+- Published v1.1.0 still contains its original 53 repairs. After F54 the branch had **54 defect records (1 P0/42 P1/11 P2)**; F54 is an unreleased post-tag fix. F55 below records a subsequent report-only correction. The completed GPU evidence follows.
 
 ### Completed bounded GPU validation
 
@@ -554,3 +554,10 @@ the original prepared run and its workflow checkpoint remain unchanged.
 - F54 independent gate 1: **No issues found.**, `../debug_artifacts/gpu_F54_review.txt`, SHA256 `9ab94be353b5102f151cfc1a8f77363e551ae63f876546ef7d30fb0cd9946958`.
 - F54 independent gate 2, after gate 1: **No issues found.**, fresh native **260 passed/6 skipped**, WSL **256 passed/10 skipped**, each platform's 21 extra public-boundary cases passed; `../debug_artifacts/gpu_F54_regression_review.txt`, SHA256 `3ea33bd0bdc766dff4f573aca020df0ac473afded676acbc396265d27ec5890b`.
 - Gate 3 consistency review follows this frozen report; only after it passes may the existing `release/1.1` branch advance. This follow-up creates no new tag or Release and never pushes the default branch.
+
+### F55 / P2: distinguish geometry and thermodynamic sampling windows
+
+- Independent gate 3 identified that GPU_VALIDATION.md grouped stage08 geometry statistics from all 200 frames under a sentence labelled last 100 ps. The temperature/density window and all raw data were correct, but the geometry window label was misleading.
+- Reproduction: CPU CSV readback asserted the claimed 501–600 ps Fe–SG mean/SD against the reported values and failed (2.5854/0.0916 calculated versus 2.5901/0.0879 printed). Evidence: `../debug_artifacts/gpu_F55_window_red_utf8.txt` and `check_gpu_report_windows.py`.
+- Smallest correction: explicitly label the geometry statistics as **08 full 200 ps**. No raw values, trajectories, parameters or production source changed. The same CPU check now covers all three printed mean/SD pairs against the stated 401–600 ps window.
+- Current branch has **55 defect records (1 P0/42 P1/12 P2)**. This documentation fix and its follow-up consistency review are after the unchanged published v1.1.0 snapshot.
