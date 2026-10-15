@@ -373,7 +373,7 @@ def build_protonation_decision_from_selectors(
         selected_residues.add(mapped["current_resid"])
         changes.append({
             "assembled_resid": mapped["current_resid"],
-            "original_chain": chain,
+            "original_chain": mapped["original_chain"],
             "original_resid": resid,
             "from": current,
             "to": target,

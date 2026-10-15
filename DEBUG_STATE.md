@@ -82,6 +82,15 @@
 - Green: 3 runner tests; full native regression **119 passed, 6 skipped**, one existing warning; real WSL `printf` **PASS, exit 0**, both logs exist. Mixed-encoding warning bytes may display replacement characters; no command success is inferred from log decoding.
 - Commit: `fix: preserve subprocess results across output encoding errors`.
 
+### F08 / P1: blank-chain protonation selectors cannot be applied
+
+- Independent audit and real public recommend → selector builder → finalize roundtrip reproduced failure for an original blank chain; true chain A passed (**1 failed, 1 passed** before fix).
+- Root cause: display alias `A` was saved as `original_chain`, contradicting the original PDB identity during finalization.
+- Fix: save the mapped original chain in the decision; keep the existing selector display and explicit transition rules. No residue-state choice or chemistry changed.
+- Green: 3 focused cases passed; full native regression **121 passed, 6 skipped**, one existing warning.
+- User explicitly confirmed the bundled 4EJJ changes for no-MD smoke: GLU419→GLH; HIE55/299/386→HID; watchlist unchanged.
+- Commit: `fix: retain blank-chain identity in protonation decisions`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
