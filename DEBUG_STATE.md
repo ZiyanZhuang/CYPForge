@@ -22,7 +22,7 @@
 - `gh release list` initially reported missing authentication. A later read-only live check succeeded using the existing context, with repository push/admin permission metadata; no login or credential extraction was performed. Authenticated tag/Release GETs for v1.1.0/v1.1.1 all returned 404. Unauthenticated API was rate-limited (403), never treated as an existence check.
 - Task-owned run directory outside the repository is writable. Working source has no user modifications. Git push dry-run succeeded; actual branch/tag/Release publication remains gated on reviews.
 - Current full regression: **255 passed, 6 skipped** native; **251 passed, 10 skipped** WSL. Both have one existing warning. Six shared skips need absent optional external fixtures; WSL's four additional skips are two native Windows launchers, one native Windows/WSL locking test and the Windows path-length boundary.
-- Repair totals: **53 defect records with dedicated repair commits: 1 P0, 41 P1, 11 P2** (52 code defects plus one documentation-contract defect). Formal rounds 1 and 2 have passed; round 3 remains the next publication gate.
+- Repair totals: **53 defect records with dedicated repair commits: 1 P0, 41 P1, 11 P2** (52 code defects plus one documentation-contract defect). All three sequential independent review gates have passed; no known P0/P1 remains within the exercised scope.
 
 ## Findings and fixes
 
@@ -496,8 +496,16 @@ Portable no-MD commands and expected review boundary are reproduced in [RELEASE_
 ## Independent reviews
 
 1. Correctness: **No issues found.** after F49, reviewed `02dd4b831734e90e34555b3a7ac120e3139270cc`. Independent full suite: 247 passed/6 skipped. Report `../review1_correctness_after_F49.txt`, SHA256 `18523c3dcd3abe74489d744546602e30f3adcd6cec265a2b2864d9066d5e03ea`.
-2. Regression: **No issues found.** after F50–F52, reviewed `b780f6322472387482ec11c0a6f6d30fccbc580f`. Fresh native 255 passed/6 skipped, fresh WSL 251 passed/10 skipped, using the unchanged original long basetemp. Independent no-op/fresh-output/cd-failure LEaP controls, unchanged protonation files on rejection, unique long-path logs and bidirectional locks passed. Report `../review2_regression_after_F52.txt`; prior reports retain each found issue and failed evidence.
-3. Consistency/docs/version/CLI: pending.
+2. Regression: **No issues found.** after F50–F52, reviewed `b780f6322472387482ec11c0a6f6d30fccbc580f`. Fresh native 255 passed/6 skipped, fresh WSL 251 passed/10 skipped, using the unchanged original long basetemp. Independent no-op/fresh-output/cd-failure LEaP controls, unchanged protonation files on rejection, unique long-path logs and bidirectional locks passed. Report `../review2_regression_after_F52.txt`, SHA256 `5ee85ed0fe4df042c5d9c19ba9c0acc85888061571dcc43b63f5081a80915b67`; prior reports retain each found issue and failed evidence.
+3. Consistency/docs/version/CLI: **No issues found.** after F53 and its external-decision clarification, reviewed `44b8b69950f7a0f035959d609e215422bd62b5d6`. Independent 33 public CLI calls, 13 exact output-manifest contracts, route-specific artifacts, 18 local links and all 37 source/wheel bytes passed. External `--decision-json` was independently applied at the final HEAD without a default-path copy. Report `../review3_consistency_after_F53.txt`, SHA256 `75556385b6e2ccdd8212dabb1cb55a2e16fea1ae0863220f47dab469e3b37a42`.
+
+## Build and publication candidate
+
+- Latest native full suite after the final documentation clarification: **255 passed, 6 skipped**, one existing warning. The WSL reviewed suite is **251 passed, 10 skipped** on the identical 37 Python sources; subsequent commits change documentation only.
+- Existing-tools offline build: `python -B -m pip wheel --no-deps --no-build-isolation --no-index --wheel-dir ../debug_artifacts/dist_release_final .`; exit 0. No package was installed.
+- Wheel `cypforge-1.1.0-py3-none-any.whl`, built at documentation revision `17c535579895cc2700f6fd10b263cbbefa720e83`: 181,529 bytes, SHA256 `3eeb3378f56063a7c7d35638717ada5217ab4ca1f4e8ca362330a9678cb9e119`. All 37 packaged Python files are byte-equal to final source. Isolated unpacked import and CLI report 1.1.0; entry point and bundled CPDI HEM data are present. Evidence: `../debug_artifacts/wheel_validation_release_final.json` and its task-owned verification script. Repository skills/benchmarks/audit documents require the checkout and are not bundled into the wheel.
+- Final read-only publication precheck: process-local GH_HOST=github.com selects the existing authenticated context; repository push permission is true, tag and Release v1.1.0 return authenticated 404, remote release/1.1 is absent, and remote main remains the exact baseline `427afd606144d388d92a684082c29cc514018154`. No authentication values were extracted or printed.
+- Publication sequence: push release/1.1, create/push a new v1.1.0 tag, create its Release with `--verify-tag --target release/1.1 --latest=false`, then read back tag/branch/asset metadata. Attach the wheel, public validation/checksums and independent reports only. A post-publication documentation-only receipt may advance release/1.1 without moving the immutable tag.
 
 ## Open limitations and release state
 
@@ -505,4 +513,4 @@ Portable no-MD commands and expected review boundary are reproduced in [RELEASE_
 - Aromatic/Kekulé equivalence and GAFF2 per-atom typing remain reviewed scientific input; only explicit comparable numeric bond conflicts were added. No aromatic algorithm, chemical mapping, force-field or protocol parameter was changed.
 - No QM fit, real pre-MD/20 ns NPT/production MD or production-readiness claim is made. Optional external fixtures, network filesystems, and Python 3.9–3.11 were not revalidated. Native Linux backend selection is simulated; real Linux execution was tested inside WSL.
 - Atomicity is per file, not a transaction across all stage files. Bounded retries may still reject a persistently held file while preserving its prior committed bytes. Copied/moved runs need explicit metadata/input reconciliation; nonzero automatic retries are rejected. Re-render old pre-MD scripts for new gates; deliberate selected-stage reruns overwrite prior stage outputs as already implied by -O.
-- Branch/tag/release publication: pending.
+- Branch/tag/release publication: all review gates passed; actual publication and the final remote receipt are the remaining step at this candidate snapshot.

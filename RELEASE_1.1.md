@@ -167,6 +167,25 @@ check reported zero problems. These observations do not establish equilibration.
 1. Correctness: **No issues found.**, after F49; independently reviewed `02dd4b8`.
 2. Regression with fresh native/WSL suites: **No issues found.**, after F50–F52;
    independently reviewed `b780f63`, including the original long test directory.
-3. Consistency/docs/version/CLI: pending.
+3. Consistency/docs/version/CLI: **No issues found.**, after F53;
+   independently reviewed `44b8b69950f7a0f035959d609e215422bd62b5d6`.
 
-Publication is gated on three sequential independent `No issues found.` results.
+All three sequential independent gates passed. The final consistency review also
+checked 33 public CLI calls, all 13 registered output manifests, route-specific
+artifacts, local document links and the unchanged source/wheel bytes.
+
+## Release assets
+
+- `cypforge-1.1.0-py3-none-any.whl`: offline build using existing tools, without
+  installing dependencies; **181,529 bytes**, SHA256
+  `3eeb3378f56063a7c7d35638717ada5217ab4ca1f4e8ca362330a9678cb9e119`.
+  All 37 packaged Python sources match the validated checkout. Metadata/import/
+  CLI version and bundled CPDI heme data were checked without installation.
+  Use the branch/tag checkout for repository skills, benchmark inputs and this
+  audit ledger; those repository files are not part of the wheel.
+- `validation.json` and `SHA256SUMS`: source/build provenance, test matrix,
+  preparation/static calculations, pressure summary and asset checksums.
+- `review1_correctness.txt`, `review2_regression.txt`,
+  `review3_consistency.txt` and `science_validation.txt`: independent reports.
+  Raw run folders, raw force-field/trajectory files and authentication data are
+  excluded from these release attachments.
