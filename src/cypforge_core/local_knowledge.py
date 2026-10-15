@@ -143,7 +143,8 @@ class LocalDocsIndex:
         digest = _sha256(document)
         with self._connect() as connection:
             existing = connection.execute(
-                "SELECT id FROM documents WHERE path=? AND sha256=?", (str(document), digest)
+                "SELECT id FROM documents WHERE path=? AND sha256=? AND source=? AND version=?",
+                (str(document), digest, source_key, version),
             ).fetchone()
             if existing:
                 return {"status": "unchanged", "document_id": existing[0], "path": str(document), "sha256": digest}

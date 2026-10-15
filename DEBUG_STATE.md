@@ -188,6 +188,14 @@
 - Green: 7 protonation cases; full native regression **163 passed, 6 skipped**, one existing warning; tests verify recommendations do not modify the original structure.
 - Commit: `fix: accept list-form protonation evidence safely`.
 
+### F21 / P2: docs sync ignores corrected source/version metadata
+
+- Red: resyncing unchanged text as AmberTools 25 after Amber 24 returned `unchanged`, and queries retained stale attribution.
+- Root cause: the unchanged lookup compared only path/content hash.
+- Fix: include source and version in that comparison, reusing the existing transactional reindex path when metadata changes.
+- Green: 2 local-knowledge cases; full native regression **164 passed, 6 skipped**, one existing warning; no duplicate search result and a truly identical resync remains unchanged.
+- Commit: `fix: refresh docs index when provenance metadata changes`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

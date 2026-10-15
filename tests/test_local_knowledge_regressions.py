@@ -1,6 +1,6 @@
 import json
 
-from cypforge_core.local_knowledge import build_run_diagnosis
+from cypforge_core.local_knowledge import build_run_diagnosis, LocalDocsIndex
 
 
 def test_diagnosis_redacts_secret_variants_and_complete_spaced_paths(tmp_path):
@@ -30,3 +30,16 @@ def test_diagnosis_redacts_secret_variants_and_complete_spaced_paths(tmp_path):
     assert "private project" not in serialized
     assert "Hidden.pdb" not in serialized
     assert report["config_public"]["input_path"] == "Sensitive.pdb"
+
+
+def test_docs_sync_refreshes_source_and_version_when_content_is_unchanged(tmp_path):
+    manual = tmp_path / "manual.txt"
+    manual.write_text("AMBER MANUAL\nunknown residue\n", encoding="utf-8")
+    index = LocalDocsIndex(tmp_path / "docs.sqlite3")
+    index.index_file(manual, source="amber", version="24")
+
+    assert index.index_file(manual, source="ambertools", version="25")["status"] == "indexed"
+    rows = index.query("unknown")
+    assert len(rows) == 1
+    assert (rows[0]["source"], rows[0]["version"]) == ("ambertools", "25")
+    assert index.index_file(manual, source="ambertools", version="25")["status"] == "unchanged"
