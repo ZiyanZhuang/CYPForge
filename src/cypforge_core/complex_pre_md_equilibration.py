@@ -755,4 +755,5 @@ def _render_windows_run_script(script_name: str) -> str:
         "$amberSetup = if ($env:AMBER_SH) { $env:AMBER_SH } else { \"$($env:AMBERHOME)/amber.sh\" }\n"
         "$wslUserArgs = if ($env:WSL_USER) { @('-u', $env:WSL_USER) } else { @() }\n"
         f"& wsl @wslUserArgs -e bash -lc \"source '$amberSetup' && cd '$wslPath' && bash {script_name}\"\n"
+        "exit $LASTEXITCODE\n"
     )

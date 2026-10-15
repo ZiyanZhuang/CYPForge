@@ -228,6 +228,14 @@
 - Green: 2 real Bash boundary cases; full native regression **177 passed, 6 skipped**, one existing warning.
 - Commit: `fix: quote dynamic values in generated pre-MD Bash`.
 
+### F26 / P1: Windows launcher returns success when its child script fails
+
+- Red: real PowerShell→WSL execution of a harmless replacement script containing only `exit 7` returned process exit 0.
+- Root cause: the generated PowerShell file did not propagate the native WSL exit code.
+- Fix: explicitly exit with `$LASTEXITCODE` after WSL completes.
+- Green: real launcher case passed; full native regression **178 passed, 6 skipped**, one existing warning. The test never invokes an MD engine; WSL/Linux skips this Windows-specific boundary.
+- Commit: `fix: propagate WSL failure from the Windows launcher`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

@@ -2,6 +2,8 @@ import json
 import shutil
 import subprocess
 import sys
+import os
+from cypforge_core.io import _win_to_wsl
 
 import pytest
 
@@ -149,3 +151,21 @@ def test_reference_path_quotes_do_not_break_generated_bash(solvation_outputs, tm
     prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, protocol_config_json=config, output_dir=tmp_path / "rendered")
     script = (tmp_path / "rendered/run_pre_md.sh").read_text(encoding="utf-8")
     assert _bash_probe(script, parse_only=True).returncode == 0
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows launcher boundary")
+def test_windows_launcher_propagates_script_failure_without_running_md(solvation_outputs, tmp_path):
+    powershell = shutil.which("pwsh")
+    if not powershell or not shutil.which("wsl"):
+        pytest.skip("PowerShell/WSL unavailable")
+    manifest, _ = solvation_outputs
+    output = tmp_path / "launcher test"
+    prepare_complex_pre_md_equilibration(solvation_manifest_json=manifest, output_dir=output)
+    (output / "run_pre_md.sh").write_bytes(b"exit 7\n")
+    setup = tmp_path / "amber.sh"
+    setup.write_bytes(b"true\n")
+    completed = subprocess.run(
+        [powershell, "-NoProfile", "-File", str(output / "run_pre_md_windows.ps1")],
+        env=dict(os.environ, AMBER_SH=_win_to_wsl(setup)), capture_output=True, timeout=20,
+    )
+    assert completed.returncode == 7
