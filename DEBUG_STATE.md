@@ -404,6 +404,14 @@
 - Green: 19 focused CLI/workflow cases; full native regression **243 passed, 6 skipped**, one existing warning.
 - Commit: `fix: reject unsupported automatic retry settings`.
 
+### F48 / P1: native Linux orchestration invokes the Windows WSL launcher
+
+- Red: simulated native Linux (no WSL markers) selected `wsl` instead of Bash for an Amber command.
+- Root cause: backend selection distinguished WSL from every other host rather than Windows from POSIX, despite documented POSIX/Linux package support.
+- Fix: Windows uses WSL; POSIX uses native Bash. Delete the now-unnecessary WSL-environment detector and allow setup-file probes on any POSIX Bash host.
+- Green: 12 runner cases; full native regression **244 passed, 6 skipped**, one existing warning. Native-Linux backend selection is simulated; actual execution is verified on Windows→WSL and WSL/Linux.
+- Commit: `fix: run Amber commands directly on native Linux`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

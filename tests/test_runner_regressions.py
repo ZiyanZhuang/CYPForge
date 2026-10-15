@@ -2,6 +2,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 import shutil
 import sys
+from types import SimpleNamespace
 import pytest
 
 from cypforge_core.orchestrator import ModuleRunner, RunConfig, StepDef
@@ -100,12 +101,29 @@ def test_placeholder_text_inside_a_filename_remains_literal(tmp_path, monkeypatc
     assert record.status == "PASS", record.error_message
 
 
+def test_native_linux_uses_bash_without_windows_wsl_launcher(tmp_path, monkeypatch):
+    calls = []
+
+    def harmless_process(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=0, stdout="owned probe", stderr="")
+
+    monkeypatch.setattr(runner_module, "sys", SimpleNamespace(platform="linux"))
+    monkeypatch.setattr(runner_module.subprocess, "run", harmless_process)
+    monkeypatch.delenv("AMBER_SH", raising=False)
+    monkeypatch.delenv("AMBERHOME", raising=False)
+    runner = ModuleRunner(RunConfig("linux", str(tmp_path), str(tmp_path)))
+    record = runner.run_step(StepDef("probe", "wsl_command", command_template="printf owned"), tmp_path / "logs")
+    assert record.status == "PASS"
+    assert calls[0][0] == "bash"
+
+
 @pytest.mark.parametrize("source", ["explicit", "AMBER_SH", "AMBERHOME"])
 def test_runner_sources_explicit_setup_file_without_filename_guessing(tmp_path, monkeypatch, source):
     if sys.platform == "win32" and not shutil.which("wsl"):
         pytest.skip("WSL unavailable")
-    if sys.platform != "win32" and not runner_module._is_inside_wsl():
-        pytest.skip("This probe requires WSL")
+    if sys.platform != "win32" and not shutil.which("bash"):
+        pytest.skip("Bash unavailable")
     directory = tmp_path / "env  中文's path"
     directory.mkdir()
     setup = directory / ("amber.sh" if source == "AMBERHOME" else "custom_setup.sh")

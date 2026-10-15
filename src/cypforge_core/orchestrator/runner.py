@@ -100,27 +100,6 @@ def _format_cmd(template: str, values: dict[str, Any], kind: str = "python_scrip
     return result
 
 
-def _is_inside_wsl() -> bool:
-    """Detect whether the current process is running inside WSL.
-
-    Single-signal detection (e.g. only checking ``/proc/sys/fs/binfmt_misc/WSLInterop``)
-    misses WSL1 (no binfmt entry) and WSL2 sessions where interop is disabled.
-    Probe several independent signals so the runner doesn't double-invoke
-    ``wsl.exe`` from within WSL and corrupt arg handling.
-    """
-    if sys.platform != "linux":
-        return False
-    if os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP"):
-        return True
-    try:
-        rel = Path("/proc/sys/kernel/osrelease").read_text(errors="replace").lower()
-        if "microsoft" in rel or "wsl" in rel:
-            return True
-    except OSError:
-        pass
-    return os.path.exists("/proc/sys/fs/binfmt_misc/WSLInterop")
-
-
 def _build_env(run_config: RunConfig) -> dict[str, str]:
     env = os.environ.copy()
     python_path = run_config.python_path
@@ -290,7 +269,7 @@ class ModuleRunner:
         stderr_path: Path,
         step: StepDef,
     ) -> StepRecord:
-        """Run a bash command through WSL. If already inside WSL, runs directly."""
+        """Use WSL on Windows and native Bash on POSIX hosts, including WSL."""
         try:
             amber_sh = resolve_amber_sh(self.config.amber_sh)
         except ValueError:
@@ -309,8 +288,7 @@ class ModuleRunner:
 
         timeout = step.timeout_seconds
 
-        if _is_inside_wsl():
-            # Already inside WSL, run bash directly
+        if sys.platform != "win32":
             parts = ["bash", "-lc", bash_cmd]
             full_cmd = shlex.join(parts)
         else:
