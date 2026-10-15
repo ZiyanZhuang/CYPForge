@@ -213,6 +213,8 @@ class WorkflowManager:
             return None
         if not isinstance(data, dict) or data.get("schema") != "cypforge.orchestrator.run_manifest.v1":
             raise ValueError(f"Invalid run manifest schema: {self.manifest_path}")
+        if not isinstance(data.get("run_root"), str) or Path(data["run_root"]).resolve() != self.run_root.resolve():
+            raise ValueError(f"Manifest run root differs from the configured run root: {self.run_root}")
         for field_name, field_type in (("modules", dict), ("run_config", dict), ("absolute_stop_conditions", list)):
             if not isinstance(data.get(field_name, field_type()), field_type):
                 raise ValueError(f"Invalid run manifest field {field_name}: {self.manifest_path}")

@@ -1,5 +1,6 @@
 import json
 import sys
+import shutil
 from pathlib import Path
 
 import pytest
@@ -71,3 +72,21 @@ def test_cli_rejects_existing_run_with_missing_checkpoint(tmp_path, monkeypatch,
     assert cli.main() == 2
     assert "[ERROR]" in capsys.readouterr().err
     assert not workflow.manifest_path.exists()
+
+
+@pytest.mark.parametrize("redirect", ["config", "manifest"])
+def test_explicit_run_root_cannot_redirect_to_a_different_run(tmp_path, monkeypatch, capsys, redirect):
+    original = tmp_path / "original"
+    copied = tmp_path / "copied"
+    WorkflowManager(RunConfig("original", str(original), str(tmp_path))).init_run()
+    shutil.copytree(original, copied)
+    if redirect == "manifest":
+        config_path = copied / "run_config.json"
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+        data["run_root"] = str(copied)
+        config_path.write_text(json.dumps(data), encoding="utf-8")
+    before = {str(path): path.read_bytes() for root in (original, copied) for path in root.glob("*.json")}
+    monkeypatch.setattr(sys, "argv", ["cypforge", "status", "copied", "--run-root", str(copied)])
+    assert cli.main() == 2
+    assert "run root" in capsys.readouterr().err.lower()
+    assert {name: Path(name).read_bytes() for name in before} == before

@@ -380,6 +380,14 @@
 - Green: 3 context cases; full native regression **231 passed, 6 skipped**, one existing warning.
 - Commit: `fix: keep context actions behind the equilibration decision gate`.
 
+### F45 / P1: explicit run-root selection silently redirects through stale metadata
+
+- Red: status of a copied run silently displayed the original run when either config or manifest retained another run root (2 failed cases). The same configuration boundary is shared by write commands.
+- Root cause: persisted absolute roots were trusted over the explicitly selected directory, with no identity consistency check.
+- Fix: reject config/requested-root and manifest/configured-root mismatches before execution. Both directories remain unchanged. Moving/copying a run requires deliberate metadata/input-path reconciliation; no implicit migration or rewrite is introduced.
+- Green: 13 CLI cases; full native regression **233 passed, 6 skipped**, one existing warning.
+- Commit: `fix: reject inconsistent persisted run-root identities`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

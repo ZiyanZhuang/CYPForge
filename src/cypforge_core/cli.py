@@ -845,6 +845,8 @@ def _load_config(run_name: str, run_root_override: str | None) -> RunConfig | No
         raise ValueError(f"Run config must be a JSON object: {config_path}")
 
     config = _dict_to_run_config(data, defaults={"run_name": run_name, "run_root": run_root})
+    if Path(config.run_root).resolve() != Path(run_root).resolve():
+        raise ValueError(f"Config run root differs from the requested run root: {run_root}")
     if CYPForgeOrchestrator(config).workflow.load_manifest() is None:
         raise FileNotFoundError(f"Run checkpoint is missing: {Path(run_root) / 'run_manifest.json'}")
     return config
