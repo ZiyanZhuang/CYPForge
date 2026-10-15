@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime, timezone
+import pytest
 
 from cypforge_core.orchestrator import ModuleRunner, RunConfig, StepDef
 import cypforge_core.orchestrator.runner as runner_module
@@ -54,3 +55,21 @@ def test_runner_preserves_exit_code_and_logs_with_non_utf8_output(tmp_path):
     assert record.exit_code == 7
     assert Path(record.stdout_path).is_file()
     assert "FATAL" in Path(record.stderr_path).read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("kind", ["python_script", "python_inline"])
+def test_command_substitution_preserves_repeated_spaces_in_input_paths(tmp_path, kind):
+    source = tmp_path / "input  中文  with  spaces.pdb"
+    source.write_text("END\n", encoding="utf-8")
+    (tmp_path / "check_path.py").write_text(
+        "import pathlib, sys\nassert pathlib.Path(sys.argv[1]).is_file(), sys.argv[1]\n", encoding="utf-8",
+    )
+    template = (
+        'python check_path.py "{raw_protein_heme_pdb}"' if kind == "python_script"
+        else "from pathlib import Path; assert Path({raw_protein_heme_pdb}).is_file()"
+    )
+    runner = ModuleRunner(RunConfig("spaces", str(tmp_path), str(tmp_path), raw_protein_heme_pdb=str(source)))
+
+    record = runner.run_step(StepDef("input", kind, command_template=template), tmp_path / "logs")
+
+    assert record.status == "PASS", record.error_message

@@ -107,6 +107,14 @@
 - Green: real no-QM workflow test passed; full native regression **124 passed, 6 skipped**. Independent analysis also verified 7581 host + 26 ligand atoms, ligand heavy-pose RMSD 0, and 465 consistent protein-residue mappings. No chemistry algorithm or heme/CYM preparation policy changed.
 - Commit: `fix: stage the confirmed ligand with the prepared Core-1 host`.
 
+### F11 / P1: command formatting changes valid file names containing repeated spaces
+
+- Red: real Python-script and Python-inline steps could not read an existing `input  中文  with  spaces.pdb` (**2 failed**).
+- Root cause: final command-wide whitespace normalization modified already-substituted quoted values. The external parser and file APIs were not responsible.
+- Fix: remove that normalization; shell/argv/Python parsers already tolerate template whitespace, while literal path whitespace is preserved.
+- Green: 5 runner cases passed; full native regression **126 passed, 6 skipped**, one existing warning.
+- Commit: `fix: preserve literal whitespace in command arguments`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

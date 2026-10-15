@@ -93,7 +93,6 @@ def _format_cmd(template: str, values: dict[str, Any], kind: str = "python_scrip
             replacement = val_str
         result = result.replace("{" + key + "}", replacement)
     # Clean up
-    result = re.sub(r'  +', ' ', result)
     result = result.strip()
     return result
 
