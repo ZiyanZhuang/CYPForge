@@ -1,9 +1,12 @@
 from pathlib import Path
 from datetime import datetime, timezone
+import shutil
+import sys
 import pytest
 
 from cypforge_core.orchestrator import ModuleRunner, RunConfig, StepDef
 import cypforge_core.orchestrator.runner as runner_module
+from cypforge_core.io import _win_to_wsl
 
 
 def test_runner_creates_portable_logs_and_executes_step(tmp_path):
@@ -72,4 +75,31 @@ def test_command_substitution_preserves_repeated_spaces_in_input_paths(tmp_path,
 
     record = runner.run_step(StepDef("input", kind, command_template=template), tmp_path / "logs")
 
+    assert record.status == "PASS", record.error_message
+
+
+@pytest.mark.parametrize("source", ["explicit", "AMBER_SH", "AMBERHOME"])
+def test_runner_sources_explicit_setup_file_without_filename_guessing(tmp_path, monkeypatch, source):
+    if sys.platform == "win32" and not shutil.which("wsl"):
+        pytest.skip("WSL unavailable")
+    if sys.platform != "win32" and not runner_module._is_inside_wsl():
+        pytest.skip("This probe requires WSL")
+    directory = tmp_path / "env  中文's path"
+    directory.mkdir()
+    setup = directory / ("amber.sh" if source == "AMBERHOME" else "custom_setup.sh")
+    setup.write_bytes(b"export OWNED_SETUP_OK=resolved\n")
+    setup_path = _win_to_wsl(setup) if sys.platform == "win32" else str(setup)
+    monkeypatch.delenv("AMBER_SH", raising=False)
+    monkeypatch.delenv("AMBERHOME", raising=False)
+    config = RunConfig("setup", str(tmp_path), str(tmp_path))
+    if source == "explicit":
+        config.amber_sh = setup_path
+    elif source == "AMBER_SH":
+        monkeypatch.setenv("AMBER_SH", setup_path)
+    else:
+        monkeypatch.setenv("AMBERHOME", setup_path.rsplit("/", 1)[0])
+    runner = ModuleRunner(config)
+    record = runner.run_step(
+        StepDef("source_only", "wsl_command", command_template='test "$OWNED_SETUP_OK" = resolved'), tmp_path / "logs",
+    )
     assert record.status == "PASS", record.error_message

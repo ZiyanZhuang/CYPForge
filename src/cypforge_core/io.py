@@ -7,7 +7,7 @@ import math
 import os
 import tempfile
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
 import numpy as np
@@ -94,7 +94,7 @@ def resolve_amber_sh(amber_sh: str | None = None) -> str:
         return env
     amberhome = os.environ.get("AMBERHOME")
     if amberhome:
-        return str(Path(amberhome) / "amber.sh")
+        return str(PurePosixPath(amberhome) / "amber.sh")
     raise ValueError(
         "Amber environment not configured. Set AMBER_SH to the path of amber.sh, "
         "e.g. 'export AMBER_SH=/path/to/amber25/amber.sh', or set AMBERHOME."

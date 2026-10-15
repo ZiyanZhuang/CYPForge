@@ -1,5 +1,6 @@
 import json
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -45,3 +46,16 @@ def test_cli_resume_error_checkpoint_returns_failure_without_execution(tmp_path,
     assert cli.main() == 2
     assert workflow.manifest_path.read_bytes() == original
     assert "[ERROR]" in capsys.readouterr().out
+
+
+def test_init_resolves_amberhome_directory_to_setup_filename(tmp_path, monkeypatch):
+    root = tmp_path / "run"
+    monkeypatch.delenv("AMBER_SH", raising=False)
+    monkeypatch.setenv("AMBERHOME", "/opt/amber custom")
+    monkeypatch.setattr(cli, "load_profile", lambda: {"values": {}})
+    args = cli._build_parser().parse_args([
+        "init", "setup", "--ligand-resname", "LIG", "--run-root", str(root),
+        "--project-root", str(Path(__file__).resolve().parents[1]),
+    ])
+    assert cli.cmd_init(args) == 0
+    assert json.loads((root / "run_config.json").read_text(encoding="utf-8"))["amber_sh"] == "/opt/amber custom/amber.sh"

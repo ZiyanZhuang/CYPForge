@@ -42,7 +42,7 @@ from .ligand_gpu4pyscf_esp import (
     stage_supplied_ligand_parameters,
 )
 from .local_knowledge import LocalDocsIndex, build_run_diagnosis, load_profile, update_profile
-from .io import read_json, write_json
+from .io import read_json, write_json, resolve_amber_sh
 from .orchestrator import CYPForgeOrchestrator, RunConfig
 
 
@@ -248,11 +248,10 @@ def cmd_init(args: argparse.Namespace) -> int:
             f"project_root does not contain src/cypforge_core/: {project_root}"
         )
 
-    amber_sh = (
-        args.amber_sh
-        or os.environ.get("AMBER_SH", os.environ.get("AMBERHOME", ""))
-        or str(profile_values.get("amber_sh", ""))
-    )
+    try:
+        amber_sh = resolve_amber_sh(args.amber_sh)
+    except ValueError:
+        amber_sh = str(profile_values.get("amber_sh", ""))
     if not amber_sh:
         warnings.append("AMBER_SH not set; WSL Amber commands will fail. Set --amber-sh or $env:AMBER_SH.")
 

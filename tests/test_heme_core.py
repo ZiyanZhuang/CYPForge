@@ -1394,6 +1394,6 @@ def test_ligand_path_resolvers_prefer_env(monkeypatch):
     assert resolve_pose_amber_sh() == "/env/amber.sh"
     monkeypatch.delenv("AMBER_SH")
     monkeypatch.setenv("AMBERHOME", "/amberhome")
-    assert resolve_gpu_amber_sh() == str(Path("/amberhome") / "amber.sh")
+    assert resolve_gpu_amber_sh() == "/amberhome/amber.sh"
     monkeypatch.setenv("MULTIWFN_BIN", "/env/Multiwfn_noGUI")
     assert resolve_multiwfn_bin() == "/env/Multiwfn_noGUI"

@@ -348,6 +348,14 @@
 - Green: 11 supplied-contract cases; full native regression **219 passed, 6 skipped**, one existing warning. Bundled positive retains 21 directly comparable numeric bonds and 6 reviewed ar bonds.
 - Commit: `fix: reject explicit supplied numeric bond-order conflicts`.
 
+### F41 / P1: environment setup filenames are guessed incorrectly
+
+- Red: real WSL runner probes failed for explicit/env AMBER_SH pointing to a valid `custom_setup.sh`; CLI init persisted AMBERHOME as a setup filename without adding `/amber.sh` (3 failed cases).
+- Root cause: runner treated every path not ending `amber.sh` as a directory; init conflated AMBER_SH (file) with AMBERHOME (directory).
+- Fix: reuse the existing shared resolver in both callers. Explicit/AMBER_SH filenames remain exact; only AMBERHOME receives a POSIX `/amber.sh` suffix, including when resolved on Windows.
+- Green: 17 focused runner/CLI/resolver cases; full native regression **223 passed, 6 skipped**, one existing warning. Real probes source harmless setup files in apostrophe/Chinese/repeated-space paths; no engine invoked.
+- Commit: `fix: resolve Amber setup files consistently without basename guessing`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

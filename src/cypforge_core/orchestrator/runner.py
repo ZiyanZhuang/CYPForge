@@ -7,11 +7,12 @@ import shlex
 import subprocess
 import sys
 from datetime import datetime, timezone
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from .models import RunConfig, StepDef, StepRecord
+from ..io import resolve_amber_sh
 
 
 def _ts() -> str:
@@ -288,13 +289,10 @@ class ModuleRunner:
         step: StepDef,
     ) -> StepRecord:
         """Run a bash command through WSL. If already inside WSL, runs directly."""
-        amber_sh = self.config.amber_sh or os.environ.get(
-            "AMBER_SH", os.environ.get("AMBERHOME", "")
-        )
-        if amber_sh and not amber_sh.endswith("amber.sh"):
-            # amber_sh is consumed by WSL bash; always join with POSIX separator
-            # regardless of host OS (Path on Windows would emit backslashes).
-            amber_sh = str(PurePosixPath(amber_sh) / "amber.sh")
+        try:
+            amber_sh = resolve_amber_sh(self.config.amber_sh)
+        except ValueError:
+            amber_sh = ""
 
         wsl_user = self.config.wsl_user
         # amber_sh is user-supplied: quote it so a path with spaces or shell
