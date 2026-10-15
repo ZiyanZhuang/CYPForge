@@ -76,11 +76,9 @@ class CYPForgeOrchestrator:
             self.workflow.save_manifest(manifest)
             return manifest
 
-        manifest.workflow_status = "RUNNING"
-        self.workflow.save_manifest(manifest)
-
         modules = self.workflow.get_ordered_modules()
         stop_index = None
+        boundary_status = "PAUSED" if stop_before_skill_id == "cypforge.core3_finalize_protonation" else "PREPARED"
         if stop_before_skill_id:
             for mod_def in modules:
                 if mod_def.skill_id == stop_before_skill_id:
@@ -89,19 +87,23 @@ class CYPForgeOrchestrator:
             if stop_index is None:
                 raise ValueError(f"Unknown stop_before_skill_id: {stop_before_skill_id}")
             if resume_point.index >= stop_index:
-                manifest.workflow_status = "COMPLETED"
-                manifest.completed_at = _ts()
-                self.workflow.save_manifest(manifest)
+                if resume_point.index == stop_index and manifest.modules[resume_point.skill_id]["status"] == "PENDING":
+                    manifest.workflow_status = boundary_status
+                    manifest.completed_at = ""
+                    self.workflow.save_manifest(manifest)
                 print(f"\nWorkflow already at or beyond {stop_before_skill_id}: {manifest.run_name}")
                 return manifest
 
+        manifest.workflow_status = "RUNNING"
+        manifest.completed_at = ""
+        self.workflow.save_manifest(manifest)
         started = False
         for mod_def in modules:
             if stop_before_skill_id and mod_def.skill_id == stop_before_skill_id:
-                manifest.workflow_status = "COMPLETED"
-                manifest.completed_at = _ts()
+                manifest.workflow_status = boundary_status
+                manifest.completed_at = ""
                 self.workflow.save_manifest(manifest)
-                print(f"\nWorkflow COMPLETED before {stop_before_skill_id}: {manifest.run_name}")
+                print(f"\nWorkflow {boundary_status} before {stop_before_skill_id}: {manifest.run_name}")
                 return manifest
 
             if not started and mod_def.skill_id != resume_point.skill_id:
@@ -144,7 +146,7 @@ class CYPForgeOrchestrator:
             print("[ERROR] No run_manifest.json found. Use 'init' first.")
             return RunManifest()
 
-        if manifest.workflow_status not in ("PAUSED", "STOPPED_ON_FAIL", "RUNNING", "INITIALIZING"):
+        if manifest.workflow_status not in ("PAUSED", "PREPARED", "COMPLETED", "STOPPED_ON_FAIL", "RUNNING", "INITIALIZING"):
             print(f"[ERROR] Workflow status is {manifest.workflow_status}. Nothing to resume.")
             return manifest
 
@@ -178,6 +180,8 @@ class CYPForgeOrchestrator:
 
         if manifest.workflow_status == "COMPLETED":
             lines.append(f"\nCompleted at: {manifest.completed_at}")
+        elif manifest.workflow_status == "PREPARED":
+            lines.append("\nPreparation boundary reached. Use 'resume' only when continued execution is intended.")
         elif manifest.workflow_status == "PAUSED":
             lines.append("\nWorkflow paused - review WARN modules before resuming.")
         elif manifest.workflow_status == "STOPPED_ON_FAIL":

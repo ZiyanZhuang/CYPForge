@@ -358,10 +358,8 @@ def cmd_prep_only(args: argparse.Namespace) -> int:
     orch = CYPForgeOrchestrator(config)
     if not config.protonation_decision_json:
         manifest = orch.run_until(stop_before_skill_id="cypforge.core3_finalize_protonation")
-        if manifest.workflow_status not in {"STOPPED_ON_FAIL", "PAUSED"}:
-            manifest.workflow_status = "PAUSED"
-            manifest.completed_at = ""
-            orch.workflow.save_manifest(manifest)
+        resume_point = orch.workflow.find_resume_point(manifest)
+        if manifest.workflow_status == "PAUSED" and resume_point is not None and resume_point.skill_id == "cypforge.core3_finalize_protonation":
             print("\nPAUSED: protonation review is required before Core 3 finalization.")
             print(f"  cypforge protonation recommend {args.run_name} --run-root \"{config.run_root}\"")
             print(

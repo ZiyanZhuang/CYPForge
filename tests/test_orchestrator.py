@@ -789,7 +789,7 @@ def test_run_until_stops_before_pre_md_execution(tmp_path, monkeypatch):
     monkeypatch.setattr(CYPForgeOrchestrator, "_execute_module", fake_execute_module)
     manifest = orch.run_until(stop_before_skill_id="cypforge.core3_run_pre_md")
 
-    assert manifest.workflow_status == "COMPLETED"
+    assert manifest.workflow_status == "PREPARED"
     assert "cypforge.core3_render_pre_md" in executed
     assert "cypforge.core3_run_pre_md" not in executed
     assert "cypforge.global_audit" not in executed

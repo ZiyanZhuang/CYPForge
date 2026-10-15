@@ -116,6 +116,11 @@ cypforge context my_run > agent_input.json
 Use `prep-only`, not `resume`, when the endpoint must remain no-MD. `resume`
 continues the full workflow and may enter `core3_run_pre_md`.
 
+A successful no-MD endpoint reports workflow status `PREPARED` (exit 0), with
+the remaining MD/audit stages still pending. `PAUSED` (exit 3) requests review;
+`COMPLETED` is reserved for the entire workflow. Explicit `resume` can continue
+from `PREPARED`, including older partial checkpoints labeled `COMPLETED`.
+
 For the bundled quick test, pass the reviewed charged MOL2 and matching frcmod
 as advanced inputs. CYPForge checks the SDF/MOL2 chemistry contract, charge sum,
 heavy-atom names, and agreement with the confirmed complex pose before staging

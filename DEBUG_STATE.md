@@ -115,6 +115,15 @@
 - Green: 5 runner cases passed; full native regression **126 passed, 6 skipped**, one existing warning.
 - Commit: `fix: preserve literal whitespace in command arguments`.
 
+### F12 / P1: prep-only marks partial work COMPLETED and blocks resume
+
+- Red: public simulated-engine tests showed the no-MD boundary falsely marked COMPLETED with a completion time, legacy partial COMPLETED checkpoints could not resume, and rechecking preparation erased a later FAIL (**3 red cases**, no MD executed).
+- Root cause: `run_until` reused the full-completion state for bounded execution; `resume` rejected that state even with pending modules. CLI then wrote a separate pause outside workflow ownership.
+- Fix: use explicit workflow `PREPARED` for a reached preparation boundary, keep `completed_at` empty, and make it resumable. Protonation boundary pauses within the workflow lock. Legacy partial COMPLETED checkpoints resume safely; later failure/progress is preserved. CLI no longer mutates the returned snapshot outside the lock.
+- Green: 5 focused cases; full native regression **129 passed, 6 skipped**, one existing warning. README documents new status and existing 0/2/3 workflow exit semantics.
+- Real smoke before this fix: init 0; prep without decision 3; recommend 0; apply 0; prep through actual LEaP/render 0. The bundled prepared PDB already contains target GLH/HID states, so explicitly approved selectors were applied idempotently (`A:GLH419=GLH`, `A:HID55/299/386=HID`). No unapproved renames occurred.
+- Commit: `fix: keep preparation checkpoints distinct and resumable`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.
