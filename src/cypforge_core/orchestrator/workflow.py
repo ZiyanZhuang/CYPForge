@@ -17,6 +17,7 @@ from .models import (
     ModuleRecord,
     build_module_definitions,
     WORKFLOW_STATUS,
+    MODULE_STATUS,
 )
 
 
@@ -194,7 +195,17 @@ class WorkflowManager:
         """Load an existing run_manifest.json. Returns None if absent."""
         if not self.manifest_path.is_file():
             return None
-        data = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        data = json.loads(self.manifest_path.read_text(encoding="utf-8-sig"))
+        if not isinstance(data, dict) or data.get("schema") != "cypforge.orchestrator.run_manifest.v1":
+            raise ValueError(f"Invalid run manifest schema: {self.manifest_path}")
+        for field_name, field_type in (("modules", dict), ("run_config", dict), ("absolute_stop_conditions", list)):
+            if not isinstance(data.get(field_name, field_type()), field_type):
+                raise ValueError(f"Invalid run manifest field {field_name}: {self.manifest_path}")
+        if data.get("workflow_status", "INITIALIZING") not in WORKFLOW_STATUS:
+            raise ValueError(f"Unknown workflow status in {self.manifest_path}")
+        for skill_id, record in data.get("modules", {}).items():
+            if not isinstance(record, dict) or record.get("status", "PENDING") not in MODULE_STATUS:
+                raise ValueError(f"Invalid module record {skill_id} in {self.manifest_path}")
         return RunManifest(
             schema=data.get("schema", ""),
             run_name=data.get("run_name", ""),

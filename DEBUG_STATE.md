@@ -204,6 +204,14 @@
 - Green: 4 local-knowledge cases; full native regression **166 passed, 6 skipped**, one existing warning. Immediate database deletion succeeds and a simulated failed reindex preserves old searchable content/metadata.
 - Commit: `fix: close local docs connections after every operation`.
 
+### F23 / P2: CLI operational/input failures have inconsistent exits and tracebacks
+
+- Red: 6 public main-entry cases failed: corrupt config returned missing-run code 1, malformed manifests/root types crashed, invalid SQLite raised a traceback.
+- Root cause: command dispatch lacked a common operational-error boundary, and run-state loading assumed object-shaped known-schema data.
+- Fix: CLI reports operational/parsing/schema failures as `[ERROR]` on stderr with exit 2; genuinely missing runs retain exit 1. Config/manifest reads tolerate UTF-8 BOM. Manifest loading validates schema, collection shapes, workflow status, and module-record status before state-machine use.
+- Green: 6 CLI cases; full native regression **172 passed, 6 skipped**, one existing warning. Data remains unchanged on read failure.
+- Commit: `fix: report invalid run state and CLI failures consistently`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

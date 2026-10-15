@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import sys
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -838,11 +839,11 @@ def _load_config(run_name: str, run_root_override: str | None) -> RunConfig | No
         return None
 
     try:
-        data = json.loads(config_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as exc:
-        print(f"[ERROR] Cannot read config: {config_path}")
-        print(f"        {exc}")
-        return None
+        data = json.loads(config_path.read_text(encoding="utf-8-sig"))
+    except (ValueError, OSError) as exc:
+        raise ValueError(f"Cannot read config {config_path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"Run config must be a JSON object: {config_path}")
 
     return _dict_to_run_config(data, defaults={"run_name": run_name, "run_root": run_root})
 
@@ -1150,6 +1151,14 @@ def _build_parser(show_advanced: bool = False) -> argparse.ArgumentParser:
 #  Entry point
 
 def main() -> int:
+    try:
+        return _main()
+    except (OSError, ValueError, RuntimeError, sqlite3.Error, KeyError, TypeError, AttributeError) as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 2
+
+
+def _main() -> int:
     show_advanced = "--help-advanced" in sys.argv
     parser = _build_parser(show_advanced=show_advanced)
     args = parser.parse_args()
