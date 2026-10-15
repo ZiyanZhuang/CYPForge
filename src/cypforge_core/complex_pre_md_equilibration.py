@@ -351,9 +351,6 @@ def prepare_complex_pre_md_equilibration(
         active_stages = [s for s in rendered_stages if s["index"] <= 8]
     elif stages_range == "9":
         active_stages = [s for s in rendered_stages if s["index"] == 9]
-        # Stage 9 needs stage 8 restart as input
-        if active_stages:
-            active_stages[0]["input_restart"] = "08_npt_soft_release.rst7"
     else:
         active_stages = rendered_stages  # "all"
 
@@ -372,8 +369,6 @@ def prepare_complex_pre_md_equilibration(
         stages_1_8 = [s for s in rendered_stages if s["index"] <= 8]
         _write_text(out_dir / "run_pre_md_1_8.sh", _render_run_script(config, stages_1_8))
         stages_9_only = [s for s in rendered_stages if s["index"] == 9]
-        if stages_9_only:
-            stages_9_only[0]["input_restart"] = "08_npt_soft_release.rst7"
         _write_text(out_dir / "run_pre_md_9.sh", _render_run_script(config, stages_9_only))
         script_files["run_script_1_8"] = str(out_dir / "run_pre_md_1_8.sh")
         script_files["run_script_9"] = str(out_dir / "run_pre_md_9.sh")

@@ -300,6 +300,14 @@
 - Green: 35 artifact cases; full native regression **201 passed, 6 skipped**, one existing warning. Fatal/empty-restart probes stop after stage 1, empty-trajectory after stage 5; all executables are harmless shell fakes.
 - Commit: `fix: stop pre-MD at the first invalid stage output`.
 
+### F35 / P2: split stage 9 ignores a customized preceding stage name
+
+- Red: both all/split9 render modes overwrote the correct derived input with the default stage-8 filename (2 failed cases); independent fake 1–8→9 execution failed despite the customized restart existing.
+- Root cause: hard-coded overrides mutated shared rendered-stage dictionaries after input dependency resolution.
+- Fix: delete the redundant overrides and retain the already derived previous-stage restart for scripts and manifest.
+- Green: 37 artifact cases; full native regression **203 passed, 6 skipped**, one existing warning.
+- Commit: `fix: preserve derived restart dependencies in split pre-MD scripts`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

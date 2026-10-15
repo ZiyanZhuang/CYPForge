@@ -159,6 +159,21 @@ def test_windows_launcher_targets_the_script_rendered_for_selected_stages(solvat
     assert f"bash {expected_script}" in launcher.read_text(encoding="utf-8")
 
 
+@pytest.mark.parametrize("selection", ["all", "9"])
+def test_split_stage9_uses_the_rendered_previous_restart(solvation_outputs, tmp_path, selection):
+    manifest, _ = solvation_outputs
+    protocol = default_pre_md_protocol_config()
+    protocol["stages"][7]["id"] = "08_user_custom"
+    config = tmp_path / "protocol.json"
+    config.write_text(json.dumps(protocol), encoding="utf-8")
+    output = tmp_path / "split"
+    result = prepare_complex_pre_md_equilibration(
+        solvation_manifest_json=manifest, protocol_config_json=config, output_dir=output, stages_range=selection,
+    )
+    assert result["stages"][8]["input_restart"] == "08_user_custom.rst7"
+    assert "-c 08_user_custom.rst7" in (output / "run_pre_md_9.sh").read_text(encoding="utf-8")
+
+
 def _bash_probe(script, *, parse_only=False):
     command = ["wsl", "--exec", "bash"] if sys.platform == "win32" else ["bash"]
     if not shutil.which(command[0]):
