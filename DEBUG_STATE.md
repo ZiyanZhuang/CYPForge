@@ -172,6 +172,14 @@
 - Green: 16 artifact cases; full native regression **157 passed, 6 skipped**, one existing warning.
 - Commit: `fix: validate stage identifiers before shell generation`.
 
+### F19 / P1: agent context deletes nested decision evidence
+
+- Red: public context export turned output paths, formal charge, and failed residue-check mappings into empty dictionaries.
+- Root cause: a top-level field whitelist was applied recursively to keys such as residue numbers and artifact names.
+- Fix: select essential fields once at the top, then retain their nested keys while bounding depth and large arrays. No new decision or scientific inference is introduced.
+- Green: 4 focused context cases; full native regression **158 passed, 6 skipped**, one existing warning. The regression also confirms unselected bulk is omitted and large arrays are still summarized.
+- Commit: `fix: preserve nested manifest evidence in agent context`.
+
 ## Module coverage
 
 Pending: ten-stage ordering/gates; solvation; pre-MD rendering; pre-MD run/recovery (simulated engine only); CLI; environment/WSL quoting; ligand supplied-parameter contract; protonation selectors; diagnosis/context; SQLite FTS5; concurrency/atomicity.

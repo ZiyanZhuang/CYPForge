@@ -156,16 +156,16 @@ def _compact_manifest(data: dict[str, Any], max_depth: int = 3) -> dict[str, Any
         "status_summary", "error_summary", "warning_summary",
     }
 
-    compact: dict[str, Any] = {}
-    for key, value in data.items():
-        if key in keep_keys:
-            if isinstance(value, list) and len(value) > 50:
-                compact[key] = f"[{len(value)} items]"
-            elif isinstance(value, dict):
-                compact[key] = _compact_manifest(value, max_depth - 1) if max_depth > 0 else "{...}"
-            else:
-                compact[key] = value
-    return compact
+    def compact_value(value: Any, depth: int) -> Any:
+        if isinstance(value, dict):
+            return {key: compact_value(child, depth - 1) for key, child in value.items()} if depth > 0 else "{...}"
+        if isinstance(value, list):
+            if len(value) > 50 or depth <= 0:
+                return f"[{len(value)} items]"
+            return [compact_value(child, depth - 1) for child in value]
+        return value
+
+    return {key: compact_value(value, max_depth) for key, value in data.items() if key in keep_keys}
 
 
 def _find_current_module(manifest: dict[str, Any]) -> str | None:
